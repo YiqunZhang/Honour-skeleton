@@ -478,6 +478,12 @@ class Processor():
                 label = label.long().cuda(self.output_device)
             timer['dataloader'] += self.split_time()
 
+            # Vnode - train
+            # data N C T V M
+            N, C, T, V, M = data.shape
+            tensor_zeros = torch.zeros(N, C, T, 1, M).cuda(self.output_device)
+            data = torch.cat((data, tensor_zeros), dim=3)
+
             # backward
             self.optimizer.zero_grad()
 
@@ -577,6 +583,14 @@ class Processor():
                 for batch_idx, (data, label, index) in enumerate(process):
                     data = data.float().cuda(self.output_device)
                     label = label.long().cuda(self.output_device)
+
+                    # Vnode - eval
+                    # data N C T V M
+                    N, C, T, V, M = data.shape
+                    tensor_zeros = torch.zeros(N, C, T, 1, M).cuda(self.output_device)
+                    data = torch.cat((data, tensor_zeros), dim=3)
+
+
                     output = self.model(data)
                     if isinstance(output, tuple):
                         output, l1 = output
