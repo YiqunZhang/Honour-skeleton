@@ -23,7 +23,6 @@ import apex
 from utils import count_params, import_class
 
 
-
 def init_seed(seed):
     torch.cuda.manual_seed_all(seed)
     torch.manual_seed(seed)
