@@ -171,6 +171,10 @@ class Model(nn.Module):
 
         out = x
         out_channels = out.size(1)
+
+        # 用vnode代替整个图的平均值
+        out = out[:, :, :, -1]
+
         out = out.view(N, M, out_channels, -1)
         out = out.mean(3)   # Global Average Pooling (Spatial+Temporal)
         out = out.mean(1)   # Average pool number of bodies in the sequence
