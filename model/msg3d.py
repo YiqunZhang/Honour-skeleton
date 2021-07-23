@@ -124,7 +124,7 @@ class Model(nn.Module):
         c3 = c2 * 2     # 384
 
         # r=3 STGC blocks
-        self.gcn3d1 = MultiWindow_MS_G3D(3, c1, A_binary, num_g3d_scales, window_stride=1)
+        # self.gcn3d1 = MultiWindow_MS_G3D(3, c1, A_binary, num_g3d_scales, window_stride=1)
         self.sgcn1 = nn.Sequential(
             MS_GCN(num_gcn_scales, 3, c1, A_binary, disentangled_agg=True),
             MS_TCN(c1, c1),
@@ -132,7 +132,7 @@ class Model(nn.Module):
         self.sgcn1[-1].act = nn.Identity()
         self.tcn1 = MS_TCN(c1, c1)
 
-        self.gcn3d2 = MultiWindow_MS_G3D(c1, c2, A_binary, num_g3d_scales, window_stride=2)
+        # self.gcn3d2 = MultiWindow_MS_G3D(c1, c2, A_binary, num_g3d_scales, window_stride=2)
         self.sgcn2 = nn.Sequential(
             MS_GCN(num_gcn_scales, c1, c1, A_binary, disentangled_agg=True),
             MS_TCN(c1, c2, stride=2),
@@ -140,7 +140,7 @@ class Model(nn.Module):
         self.sgcn2[-1].act = nn.Identity()
         self.tcn2 = MS_TCN(c2, c2)
 
-        self.gcn3d3 = MultiWindow_MS_G3D(c2, c3, A_binary, num_g3d_scales, window_stride=2)
+        # self.gcn3d3 = MultiWindow_MS_G3D(c2, c3, A_binary, num_g3d_scales, window_stride=2)
         self.sgcn3 = nn.Sequential(
             MS_GCN(num_gcn_scales, c2, c2, A_binary, disentangled_agg=True),
             MS_TCN(c2, c3, stride=2),
