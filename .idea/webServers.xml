@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="71cb560b-5f8a-4d31-bd76-df5edccfea59" name="SuperPC">
+        <fileTransfer rootFolder="/home/ankin" accessType="SFTP" host="10.10.2.2" port="22" sshConfigId="17d1b0e7-2211-486e-89cb-25d11ce19d74" sshConfig="ankin@10.10.2.2:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
