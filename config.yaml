@@ -14,6 +14,7 @@ model_saved_name: ''
 feeder: feeders.feeder.Feeder
 test_feeder_args:
   data_path: /home/ankin/FP-data/NTU_120/ntu120/xsub/val_data_jnt_dct_3_pos2.npy
+
   label_path: /home/ankin/FP-data/NTU_120/ntu120/xsub/val_label.pkl
 train_feeder_args:
   data_path: /home/ankin/FP-data/NTU_120/ntu120/xsub/train_data_jnt_dct_3_pos2.npy
