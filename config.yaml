@@ -13,13 +13,13 @@ model_saved_name: ''
 # feeder
 feeder: feeders.feeder.Feeder
 test_feeder_args:
-  data_path: /home/ankin/FP-data/NTU_120/ntu120/xsub/val_data_jnt_dct_3_pos2.npy
+  data_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/val_data_jnt_dct_3_pos2.npy
 
-  label_path: /home/ankin/FP-data/NTU_120/ntu120/xsub/val_label.pkl
+  label_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/val_label.pkl
 train_feeder_args:
-  data_path: /home/ankin/FP-data/NTU_120/ntu120/xsub/train_data_jnt_dct_3_pos2.npy
+  data_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/train_data_jnt_dct_3_pos2.npy
   debug: false
-  label_path: /home/ankin/FP-data/NTU_120/ntu120/xsub/train_label.pkl
+  label_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/train_label.pkl
   normalization: false
   random_choose: false
   random_move: false

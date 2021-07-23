@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="SuperPC" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" serverName="SuperPC" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
       <paths name="SuperPC">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/skeleton/git/Honour-skeleton" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="SuperPC (project level)">
         <serverdata>
           <mappings>
             <mapping deploy="/PP-git/Honour-skeleton" local="$PROJECT_DIR$" web="/" />
@@ -10,6 +17,5 @@
         </serverdata>
       </paths>
     </serverData>
-    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>
