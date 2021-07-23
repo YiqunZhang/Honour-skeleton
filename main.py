@@ -478,6 +478,11 @@ class Processor():
                 label = label.long().cuda(self.output_device)
             timer['dataloader'] += self.split_time()
 
+            # one-hot
+            one_hot = torch.eye(self.arg.model_args['num_point']).unsqueeze(1).unsqueeze(-1).unsqueeze(0). \
+                repeat(data.shape[0], 1, data.shape[2], 1, self.arg.model_args['num_person']).to(data.device)
+            data = torch.cat((data, one_hot), dim=1)
+
             # backward
             self.optimizer.zero_grad()
 
@@ -577,6 +582,13 @@ class Processor():
                 for batch_idx, (data, label, index) in enumerate(process):
                     data = data.float().cuda(self.output_device)
                     label = label.long().cuda(self.output_device)
+
+                    # one-hot
+                    one_hot = torch.eye(self.arg.model_args['num_point']).unsqueeze(1).unsqueeze(-1).unsqueeze(0). \
+                        repeat(data.shape[0], 1, data.shape[2], 1, self.arg.model_args['num_person']).to(
+                        data.device)
+                    data = torch.cat((data, one_hot), dim=1)
+
                     output = self.model(data)
                     if isinstance(output, tuple):
                         output, l1 = output
