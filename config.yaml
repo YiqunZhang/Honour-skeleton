@@ -31,9 +31,9 @@ step: [28, 36, 44, 52]
 base_lr: 0.05
 
 # batch size
-batch_size: 30
-forward_batch_size: 30
-test_batch_size: 30
+batch_size: 50
+forward_batch_size: 50
+test_batch_size: 50
 
 device:
 - 1
