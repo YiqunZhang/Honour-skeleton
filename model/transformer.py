@@ -84,6 +84,10 @@ class Model(nn.Module):
 
         out = x
         out_channels = out.size(1)
+
+        # 将graph的25个node在这里取平均值, 为后面TRM做出准备
+        out = out.mean(3)
+
         out = out.view(N, M, out_channels, -1)
         out = out.mean(3)   # Global Average Pooling (Spatial+Temporal)
         out = out.mean(1)   # Average pool number of bodies in the sequence
