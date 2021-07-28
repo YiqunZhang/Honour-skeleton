@@ -12,7 +12,7 @@
       <paths name="SuperPC (project level)">
         <serverdata>
           <mappings>
-            <mapping deploy="/PP-git/Honour-skeleton" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/skeleton/git/Honour-skeleton" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
