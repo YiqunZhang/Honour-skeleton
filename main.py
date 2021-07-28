@@ -543,7 +543,8 @@ class Processor():
 
         mean_loss = np.mean(loss_values)
         num_splits = self.arg.batch_size // self.arg.forward_batch_size
-        self.print_log(f'\tMean training loss: {mean_loss:.4f} (BS {self.arg.batch_size}: {mean_loss * num_splits:.4f}).')
+        self.print_log(
+            f'\tMean training loss: {mean_loss:.4f} (BS {self.arg.batch_size}: {mean_loss * num_splits:.4f}).')
         self.print_log('\tTime consumption: [Data]{dataloader}, [Network]{model}'.format(**proportion))
 
         # PyTorch > 1.2.0: update LR scheduler here with `.step()`
