@@ -1,5 +1,5 @@
 # model
-model: model.msg3d.Model
+model: model.transformer.Model
 model_args:
   graph: graph.ntu_rgb_d.AdjMatrixGraph
   num_class: 120
