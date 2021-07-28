@@ -61,6 +61,8 @@ class Model(nn.Module):
         self.sgcn3[-1].act = nn.Identity()
         self.tcn3 = MS_TCN(c3, c3)
 
+        self.trm = Transformer()
+
         self.fc = nn.Linear(c3, num_class)
 
     def forward(self, x):
@@ -93,29 +95,31 @@ class Model(nn.Module):
         # 先对human取均值
         out = out.mean(1)  # Average pool number of bodies in the sequence
 
-        out = out.mean(3)   # Global Average Pooling (Spatial+Temporal)
-
+        out = self.trm(out)
 
         out = self.fc(out)
         return out
 
 
-if __name__ == "__main__":
-    # For debugging purposes
-    import sys
-    sys.path.append('..')
+class Transformer(nn.Module):
+    def __init__(self):
+        super().__init__()
 
-    model = Model(
-        num_class=60,
-        num_point=25,
-        num_person=2,
-        num_gcn_scales=13,
-        num_g3d_scales=6,
-        graph='graph.ntu_rgb_d.AdjMatrixGraph'
-    )
+    def forward(self, x):
+        # shape = batch_size * channel * frames
+        x = x.mean(2)  # Global Average Pooling (Spatial+Temporal)
+        return x
 
-    N, C, T, V, M = 6, 3, 50, 25, 2
-    x = torch.randn(N,C,T,V,M)
-    model.forward(x)
 
-    print('Model total # params:', count_params(model))
+class PatchEmbedding(nn.Module):
+    pass
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self,x):
+        # 输入shape = batch_size * channel * frames
+
+        x = x.transpose(1,2) # 输出shape = batch_size * frames * channel
+        return x
+
