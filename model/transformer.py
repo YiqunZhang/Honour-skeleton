@@ -1,4 +1,5 @@
 import sys
+
 sys.path.insert(0, '')
 
 import math
@@ -33,8 +34,8 @@ class Model(nn.Module):
 
         # channels
         c1 = 96
-        c2 = c1 * 2     # 192
-        c3 = c2 * 2     # 384
+        c2 = c1 * 2  # 192
+        c3 = c2 * 2  # 384
 
         # r=3 STGC blocks
         # self.gcn3d1 = MultiWindow_MS_G3D(3, c1, A_binary, num_g3d_scales, window_stride=1)
@@ -69,7 +70,7 @@ class Model(nn.Module):
         N, C, T, V, M = x.size()
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
         x = self.data_bn(x)
-        x = x.view(N * M, V, C, T).permute(0,2,3,1).contiguous()
+        x = x.view(N * M, V, C, T).permute(0, 2, 3, 1).contiguous()
 
         # Apply activation to the sum of the pathways
         # x = F.relu(self.sgcn1(x) + self.gcn3d1(x), inplace=True)
@@ -111,16 +112,16 @@ class Transformer(nn.Module):
         return x
 
 
-class PatchEmbedding(nn.Module):
+class PatchEmbed(nn.Module):
     pass
 
     def __init__(self):
         super().__init__()
 
-    def forward(self,x):
+    def forward(self, x):
         # 输入shape = batch_size * channel * frames
 
-        x = x.transpose(1,2) # 输出shape = batch_size * frames * channel
+        x = x.transpose(1, 2)  # 输出shape = batch_size * frames * channel
         return x
 
 
@@ -150,6 +151,7 @@ class Attention(nn.Module):
     attn_drop, proj_drop : nn.Dropout
         Dropout layers.
     """
+
     def __init__(self, dim, n_heads=12, qkv_bias=True, attn_p=0., proj_p=0.):
         super().__init__()
         self.n_heads = n_heads
@@ -180,23 +182,23 @@ class Attention(nn.Module):
 
         qkv = self.qkv(x)  # (n_samples, n_patches + 1, 3 * dim)
         qkv = qkv.reshape(
-                n_samples, n_tokens, 3, self.n_heads, self.head_dim
+            n_samples, n_tokens, 3, self.n_heads, self.head_dim
         )  # (n_smaples, n_patches + 1, 3, n_heads, head_dim)
         qkv = qkv.permute(
-                2, 0, 3, 1, 4
+            2, 0, 3, 1, 4
         )  # (3, n_samples, n_heads, n_patches + 1, head_dim)
 
         q, k, v = qkv[0], qkv[1], qkv[2]
         k_t = k.transpose(-2, -1)  # (n_samples, n_heads, head_dim, n_patches + 1)
         dp = (
-           q @ k_t
-        ) * self.scale # (n_samples, n_heads, n_patches + 1, n_patches + 1)
+                     q @ k_t
+             ) * self.scale  # (n_samples, n_heads, n_patches + 1, n_patches + 1)
         attn = dp.softmax(dim=-1)  # (n_samples, n_heads, n_patches + 1, n_patches + 1)
         attn = self.attn_drop(attn)
 
         weighted_avg = attn @ v  # (n_samples, n_heads, n_patches +1, head_dim)
         weighted_avg = weighted_avg.transpose(
-                1, 2
+            1, 2
         )  # (n_samples, n_patches + 1, n_heads, head_dim)
         weighted_avg = weighted_avg.flatten(2)  # (n_samples, n_patches + 1, dim)
 
@@ -204,6 +206,7 @@ class Attention(nn.Module):
         x = self.proj_drop(x)  # (n_samples, n_patches + 1, dim)
 
         return x
+
 
 class MLP(nn.Module):
     """Multilayer perceptron.
@@ -228,6 +231,7 @@ class MLP(nn.Module):
     drop : nn.Dropout
         Dropout layer.
     """
+
     def __init__(self, in_features, hidden_features, out_features, p=0.):
         super().__init__()
         self.fc1 = nn.Linear(in_features, hidden_features)
@@ -247,11 +251,71 @@ class MLP(nn.Module):
             Shape `(n_samples, n_patches +1, out_features)`
         """
         x = self.fc1(
-                x
-        ) # (n_samples, n_patches + 1, hidden_features)
+            x
+        )  # (n_samples, n_patches + 1, hidden_features)
         x = self.act(x)  # (n_samples, n_patches + 1, hidden_features)
         x = self.drop(x)  # (n_samples, n_patches + 1, hidden_features)
         x = self.fc2(x)  # (n_samples, n_patches + 1, hidden_features)
         x = self.drop(x)  # (n_samples, n_patches + 1, hidden_features)
+
+        return x
+
+
+class Block(nn.Module):
+    """Transformer block.
+    Parameters
+    ----------
+    dim : int
+        Embeddinig dimension.
+    n_heads : int
+        Number of attention heads.
+    mlp_ratio : float
+        Determines the hidden dimension size of the `MLP` module with respect
+        to `dim`.
+    qkv_bias : bool
+        If True then we include bias to the query, key and value projections.
+    p, attn_p : float
+        Dropout probability.
+    Attributes
+    ----------
+    norm1, norm2 : LayerNorm
+        Layer normalization.
+    attn : Attention
+        Attention module.
+    mlp : MLP
+        MLP module.
+    """
+
+    def __init__(self, dim, n_heads, mlp_ratio=4.0, qkv_bias=True, p=0., attn_p=0.):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(dim, eps=1e-6)
+        self.attn = Attention(
+            dim,
+            n_heads=n_heads,
+            qkv_bias=qkv_bias,
+            attn_p=attn_p,
+            proj_p=p
+        )
+        self.norm2 = nn.LayerNorm(dim, eps=1e-6)
+        hidden_features = int(dim * mlp_ratio)
+        self.mlp = MLP(
+            in_features=dim,
+            hidden_features=hidden_features,
+            out_features=dim,
+        )
+
+    def forward(self, x):
+        """Run forward pass.
+        Parameters
+        ----------
+        x : torch.Tensor
+            Shape `(n_samples, n_patches + 1, dim)`.
+        Returns
+        -------
+        torch.Tensor
+            Shape `(n_samples, n_patches + 1, dim)`.
+        """
+        x = x + self.attn(self.norm1(x))
+        x = x + self.mlp(self.norm2(x))
 
         return x
