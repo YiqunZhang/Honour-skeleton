@@ -1,22 +1,55 @@
-# model
-model: model.transformer.Model
+amp_opt_level: 1
+assume_yes: true
+base_lr: 0.05
+batch_size: 9
+checkpoint: null
+config: ./config.yaml
+debug: false
+device:
+- 1
+- 0
+eval_interval: 1
+eval_start: 1
+feeder: feeders.feeder.Feeder
+forward_batch_size: 9
+half: false
+ignore_weights: []
+log_interval: 100
+model: model.msg3d.Model
 model_args:
   graph: graph.ntu_rgb_d.AdjMatrixGraph
+  in_channels: 37
   num_class: 120
   num_g3d_scales: 6
   num_gcn_scales: 13
   num_person: 2
   num_point: 25
-  in_channels: 3
 model_saved_name: ''
-
-# feeder
-feeder: feeders.feeder.Feeder
+nesterov: true
+num_epoch: 60
+num_worker: 8
+optimizer: SGD
+optimizer_states: null
+phase: train
+print_log: true
+save_interval: 1
+save_score: false
+seed: 123
+show_topk:
+- 1
+- 5
+start_epoch: 0
+step:
+- 28
+- 36
+- 44
+- 52
+test_batch_size: 9
 test_feeder_args:
-  data_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/val_data_joint.npy
+  data_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/val_data_jnt_dct_3_pos2.npy
   label_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/val_label.pkl
 train_feeder_args:
-  data_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/train_data_joint.npy
+  data_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/train_data_jnt_dct_3_pos2.npy
   debug: false
   label_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/train_label.pkl
   normalization: false
@@ -24,44 +57,6 @@ train_feeder_args:
   random_move: false
   random_shift: false
   window_size: -1
-
-# 训练参数
 weight_decay: 0.0005
-step: [28, 36, 44, 52]
-base_lr: 0.05
-
-# batch size
-batch_size: 50
-forward_batch_size: 50
-test_batch_size: 50
-
-device:
-- 1
-- 0
-
-start_epoch: 0
-num_epoch: 60
-eval_interval: 1
-eval_start: 1
-
-# checkpoint: ./workdir/checkpoints/checkpoint-44-fwbz16-86636.pt
-# weights: ./workdir/weights/weights-44-86636.pt
-
-amp_opt_level: 1
-
-debug: false
-optimizer_states: null
-phase: train
-print_log: true
-save_interval: 1
-save_score: false
-seed: 123
-nesterov: true
-num_worker: 8
-work_dir: ./workdir
-optimizer: SGD
-assume_yes: true
-half: false
-ignore_weights: []
-log_interval: 100
-
+weights: null
+work_dir: /home/ankin/skeleton/workdir
