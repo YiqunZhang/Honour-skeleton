@@ -126,7 +126,7 @@ class Model(nn.Module):
         # r=3 STGC blocks
         # self.gcn3d1 = MultiWindow_MS_G3D(3, c1, A_binary, num_g3d_scales, window_stride=1)
         self.sgcn1 = nn.Sequential(
-            MS_GCN(num_gcn_scales, 3, c1, A_binary, disentangled_agg=True),
+            MS_GCN(num_gcn_scales, in_channels, c1, A_binary, disentangled_agg=True),
             MS_TCN(c1, c1),
             MS_TCN(c1, c1))
         self.sgcn1[-1].act = nn.Identity()

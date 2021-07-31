@@ -145,7 +145,7 @@ def gen_nerf_data(fea_type, dataset_type):
         #             'data/{}/{}_data_jnt_dct_{}.npy'
 
 
-        save_name = '/home/ankin/FP-data/NTU_120/{}/{}_data_jnt_dct_{}_pos2.npy'
+        save_name = '/home/ankin/skeleton/data/NTU_120/{}/{}_data_jnt_dct_{}_pos3.npy'
         # save_name = '/media/zhenyue-qin/Backup Plus/Baseline-Implementation/Skeleton-Action-Recognition/2020-CVPR-Liu-MS-G3D/MS-G3D/data/{}/{}_data_jnt_nerf.npy'
     elif fea_type == 'bone':
         # save_name = '/data1/zhenyue/Baseline-Implementation/Skeleton-Action-Recognition/2020-CVPR-Liu-MS-G3D/MS-G3D/' \
@@ -160,7 +160,7 @@ def gen_nerf_data(fea_type, dataset_type):
             if fea_type == 'joint':
                 # data_path = '/data1/zhenyue/Baseline-Implementation/Skeleton-Action-Recognition/2020-CVPR-Liu-MS-G3D/' \
                 #                'MS-G3D/data/{}/{}_data_joint.npy'.format(benchmark, part)
-                data_path = '/home/ankin/FP-data/NTU_120/{}/{}_data_joint.npy'.format(benchmark, part)
+                data_path = '/home/ankin/skeleton/data/NTU_120/{}/{}_data_joint.npy'.format(benchmark, part)
                 # data_path = '/media/zhenyue-qin/Backup Plus/Baseline-Implementation/Skeleton-Action-Recognition/2020-CVPR-Liu-MS-G3D/MS-G3D/data' \
                 #                 '/{}/{}_data_joint.npy'.format(benchmark, part)
                 # data = np.load('/media/zhenyue-qin/Backup Plus/Baseline-Implementation/Skeleton-Action-Recognition/2020-CVPR-Liu-MS-G3D/MS-G3D/data'
