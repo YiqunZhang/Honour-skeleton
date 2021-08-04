@@ -33,20 +33,18 @@ class Model(nn.Module):
         self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
 
         # channels
-        c1 = 96
-        c2 = c1 * 2  # 192
-        c3 = c2 * 2  # 384
+        c1 = 6
+        c2 = c1 * 2
+        c3 = c2 * 2
 
         # r=3 STGC blocks
-        # self.gcn3d1 = MultiWindow_MS_G3D(3, c1, A_binary, num_g3d_scales, window_stride=1)
         self.sgcn1 = nn.Sequential(
-            MS_GCN(num_gcn_scales, 3, c1, A_binary, disentangled_agg=True),
+            MS_GCN(num_gcn_scales, in_channels, c1, A_binary, disentangled_agg=True),
             MS_TCN(c1, c1),
             MS_TCN(c1, c1))
         self.sgcn1[-1].act = nn.Identity()
         self.tcn1 = MS_TCN(c1, c1)
 
-        # self.gcn3d2 = MultiWindow_MS_G3D(c1, c2, A_binary, num_g3d_scales, window_stride=2)
         self.sgcn2 = nn.Sequential(
             MS_GCN(num_gcn_scales, c1, c1, A_binary, disentangled_agg=True),
             MS_TCN(c1, c2, stride=2),
@@ -54,7 +52,6 @@ class Model(nn.Module):
         self.sgcn2[-1].act = nn.Identity()
         self.tcn2 = MS_TCN(c2, c2)
 
-        # self.gcn3d3 = MultiWindow_MS_G3D(c2, c3, A_binary, num_g3d_scales, window_stride=2)
         self.sgcn3 = nn.Sequential(
             MS_GCN(num_gcn_scales, c2, c2, A_binary, disentangled_agg=True),
             MS_TCN(c2, c3, stride=2),
@@ -63,7 +60,13 @@ class Model(nn.Module):
         self.tcn3 = MS_TCN(c3, c3)
 
         self.trm = Transformer()
-        self.vim = VisionTransformer()
+        self.vim = VisionTransformer(
+            n_classes=120,
+            n_patches=300,
+            embed_dim=3,
+            depth=12,
+            n_heads=1
+        )
 
         self.fc = nn.Linear(c3, num_class)
 
@@ -74,17 +77,14 @@ class Model(nn.Module):
         x = x.view(N * M, V, C, T).permute(0, 2, 3, 1).contiguous()
 
         # Apply activation to the sum of the pathways
-        # x = F.relu(self.sgcn1(x) + self.gcn3d1(x), inplace=True)
-        x = F.relu(self.sgcn1(x), inplace=True)
-        x = self.tcn1(x)
-
-        # x = F.relu(self.sgcn2(x) + self.gcn3d2(x), inplace=True)
-        x = F.relu(self.sgcn2(x), inplace=True)
-        x = self.tcn2(x)
-
-        # x = F.relu(self.sgcn3(x) + self.gcn3d3(x), inplace=True)
-        x = F.relu(self.sgcn3(x), inplace=True)
-        x = self.tcn3(x)
+        # x = F.relu(self.sgcn1(x), inplace=True)
+        # x = self.tcn1(x)
+        #
+        # x = F.relu(self.sgcn2(x), inplace=True)
+        # x = self.tcn2(x)
+        #
+        # x = F.relu(self.sgcn3(x), inplace=True)
+        # x = self.tcn3(x)
 
         out = x
         out_channels = out.size(1)
