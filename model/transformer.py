@@ -62,10 +62,10 @@ class Model(nn.Module):
         self.trm = Transformer()
         self.vim = VisionTransformer(
             n_classes=120,
-            n_patches=300,
-            embed_dim=3,
+            n_patches=75,
+            embed_dim=c3,
             depth=12,
-            n_heads=1
+            n_heads=8
         )
 
         self.fc = nn.Linear(c3, num_class)
@@ -77,14 +77,14 @@ class Model(nn.Module):
         x = x.view(N * M, V, C, T).permute(0, 2, 3, 1).contiguous()
 
         # Apply activation to the sum of the pathways
-        # x = F.relu(self.sgcn1(x), inplace=True)
-        # x = self.tcn1(x)
-        #
-        # x = F.relu(self.sgcn2(x), inplace=True)
-        # x = self.tcn2(x)
-        #
-        # x = F.relu(self.sgcn3(x), inplace=True)
-        # x = self.tcn3(x)
+        x = F.relu(self.sgcn1(x), inplace=True)
+        x = self.tcn1(x)
+
+        x = F.relu(self.sgcn2(x), inplace=True)
+        x = self.tcn2(x)
+
+        x = F.relu(self.sgcn3(x), inplace=True)
+        x = self.tcn3(x)
 
         out = x
         out_channels = out.size(1)
