@@ -35,7 +35,7 @@ class Model(nn.Module):
         # channels
         c1 = 6
         c2 = c1 * 2
-        c3 = c2 * 2
+        # c3 = c2 * 2
 
         # r=3 STGC blocks
         self.sgcn1 = nn.Sequential(
@@ -52,23 +52,23 @@ class Model(nn.Module):
         self.sgcn2[-1].act = nn.Identity()
         self.tcn2 = MS_TCN(c2, c2)
 
-        self.sgcn3 = nn.Sequential(
-            MS_GCN(num_gcn_scales, c2, c2, A_binary, disentangled_agg=True),
-            MS_TCN(c2, c3, stride=2),
-            MS_TCN(c3, c3))
-        self.sgcn3[-1].act = nn.Identity()
-        self.tcn3 = MS_TCN(c3, c3)
+        # self.sgcn3 = nn.Sequential(
+        #     MS_GCN(num_gcn_scales, c2, c2, A_binary, disentangled_agg=True),
+        #     MS_TCN(c2, c3, stride=2),
+        #     MS_TCN(c3, c3))
+        # self.sgcn3[-1].act = nn.Identity()
+        # self.tcn3 = MS_TCN(c3, c3)
 
-        self.trm = Transformer()
+
         self.vim = VisionTransformer(
             n_classes=120,
-            n_patches=75,
-            embed_dim=c3,
+            n_patches=150,
+            embed_dim=c2,
             depth=12,
-            n_heads=8
+            n_heads=4
         )
 
-        self.fc = nn.Linear(c3, num_class)
+        self.fc = nn.Linear(c2, num_class)
 
     def forward(self, x):
         N, C, T, V, M = x.size()
@@ -83,8 +83,8 @@ class Model(nn.Module):
         x = F.relu(self.sgcn2(x), inplace=True)
         x = self.tcn2(x)
 
-        x = F.relu(self.sgcn3(x), inplace=True)
-        x = self.tcn3(x)
+        # x = F.relu(self.sgcn3(x), inplace=True)
+        # x = self.tcn3(x)
 
         out = x
         out_channels = out.size(1)
@@ -105,14 +105,6 @@ class Model(nn.Module):
         return out
 
 
-class Transformer(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x):
-        # shape = batch_size * channel * frames
-        x = x.mean(2)  # Global Average Pooling (Spatial+Temporal)
-        return x
 
 
 class PatchEmbed(nn.Module):
