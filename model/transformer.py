@@ -34,23 +34,21 @@ class Model(nn.Module):
 
         # channels
         c1 = 6
-        c2 = c1 * 2
-        # c3 = c2 * 2
 
         # r=3 STGC blocks
         self.sgcn1 = nn.Sequential(
             MS_GCN(num_gcn_scales, in_channels, c1, A_binary, disentangled_agg=True),
-            MS_TCN(c1, c1),
+            MS_TCN(c1, c1, stride=2),
             MS_TCN(c1, c1))
         self.sgcn1[-1].act = nn.Identity()
         self.tcn1 = MS_TCN(c1, c1)
 
-        self.sgcn2 = nn.Sequential(
-            MS_GCN(num_gcn_scales, c1, c1, A_binary, disentangled_agg=True),
-            MS_TCN(c1, c2, stride=2),
-            MS_TCN(c2, c2))
-        self.sgcn2[-1].act = nn.Identity()
-        self.tcn2 = MS_TCN(c2, c2)
+        # self.sgcn2 = nn.Sequential(
+        #     MS_GCN(num_gcn_scales, c1, c1, A_binary, disentangled_agg=True),
+        #     MS_TCN(c1, c2, stride=2),
+        #     MS_TCN(c2, c2))
+        # self.sgcn2[-1].act = nn.Identity()
+        # self.tcn2 = MS_TCN(c2, c2)
 
         # self.sgcn3 = nn.Sequential(
         #     MS_GCN(num_gcn_scales, c2, c2, A_binary, disentangled_agg=True),
@@ -62,13 +60,13 @@ class Model(nn.Module):
 
         self.vim = VisionTransformer(
             n_classes=120,
-            n_patches=150,
-            embed_dim=c2,
+            n_patches=150 * 25,
+            embed_dim=c1,
             depth=12,
-            n_heads=4
+            n_heads=1
         )
 
-        self.fc = nn.Linear(c2, num_class)
+        self.fc = nn.Linear(c1, num_class)
 
     def forward(self, x):
         N, C, T, V, M = x.size()
@@ -80,8 +78,8 @@ class Model(nn.Module):
         x = F.relu(self.sgcn1(x), inplace=True)
         x = self.tcn1(x)
 
-        x = F.relu(self.sgcn2(x), inplace=True)
-        x = self.tcn2(x)
+        # x = F.relu(self.sgcn2(x), inplace=True)
+        # x = self.tcn2(x)
 
         # x = F.relu(self.sgcn3(x), inplace=True)
         # x = self.tcn3(x)
@@ -89,8 +87,11 @@ class Model(nn.Module):
         out = x
         out_channels = out.size(1)
 
+        out_N, out_C, out_T, out_V = out.size()
+        out = out.view(out_N, out_C, out_T * out_V)
+
         # 将graph的25个node在这里提前取平均值, 为后面TRM做出准备
-        out = out.mean(3)
+        # out = out.mean(3)
 
         out = out.view(N, M, out_channels, -1)
 
