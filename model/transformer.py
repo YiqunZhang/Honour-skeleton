@@ -87,8 +87,12 @@ class Model(nn.Module):
         out = x
         out_channels = out.size(1)
 
+        # 合并 CV 两个维度
         out_N, out_C, out_T, out_V = out.size()
-        out = out.view(out_N, out_C, out_T * out_V)
+        out = out.permute(0, 2, 1, 3).contiguous()
+
+        out = out.view(out_N, out_T, out_C * out_V)
+        out = out.permute(0, 2, 1).contiguous()
 
         # 将graph的25个node在这里提前取平均值, 为后面TRM做出准备
         # out = out.mean(3)
