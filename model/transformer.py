@@ -32,41 +32,16 @@ class Model(nn.Module):
 
         self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
 
-        # channels
-        c1 = 6
-
-        # r=3 STGC blocks
-        self.sgcn1 = nn.Sequential(
-            MS_GCN(num_gcn_scales, in_channels, c1, A_binary, disentangled_agg=True),
-            MS_TCN(c1, c1, stride=2),
-            MS_TCN(c1, c1))
-        self.sgcn1[-1].act = nn.Identity()
-        self.tcn1 = MS_TCN(c1, c1)
-
-        # self.sgcn2 = nn.Sequential(
-        #     MS_GCN(num_gcn_scales, c1, c1, A_binary, disentangled_agg=True),
-        #     MS_TCN(c1, c2, stride=2),
-        #     MS_TCN(c2, c2))
-        # self.sgcn2[-1].act = nn.Identity()
-        # self.tcn2 = MS_TCN(c2, c2)
-
-        # self.sgcn3 = nn.Sequential(
-        #     MS_GCN(num_gcn_scales, c2, c2, A_binary, disentangled_agg=True),
-        #     MS_TCN(c2, c3, stride=2),
-        #     MS_TCN(c3, c3))
-        # self.sgcn3[-1].act = nn.Identity()
-        # self.tcn3 = MS_TCN(c3, c3)
-
 
         self.vim = VisionTransformer(
             n_classes=120,
-            n_patches=150 * 25,
-            embed_dim=c1,
+            n_patches=300 * 25,
+            embed_dim=3,
             depth=12,
             n_heads=1
         )
 
-        self.fc = nn.Linear(c1, num_class)
+        self.fc = nn.Linear(3, num_class)
 
     def forward(self, x):
         N, C, T, V, M = x.size()
@@ -74,15 +49,6 @@ class Model(nn.Module):
         x = self.data_bn(x)
         x = x.view(N * M, V, C, T).permute(0, 2, 3, 1).contiguous()
 
-        # Apply activation to the sum of the pathways
-        x = F.relu(self.sgcn1(x), inplace=True)
-        x = self.tcn1(x)
-
-        # x = F.relu(self.sgcn2(x), inplace=True)
-        # x = self.tcn2(x)
-
-        # x = F.relu(self.sgcn3(x), inplace=True)
-        # x = self.tcn3(x)
 
         out = x
         out_channels = out.size(1)
@@ -101,10 +67,6 @@ class Model(nn.Module):
 
         # 先对human取均值
         out = out.mean(1)  # Average pool number of bodies in the sequence
-
-        # out = self.trm(out)
-
-        # out = self.fc(out)
 
         out = self.vim(out)
         return out
