@@ -9,43 +9,29 @@ class Model(nn.Module):
                  num_class,
                  num_point,
                  num_person,
-                 num_gcn_scales,
-                 num_g3d_scales,
-                 graph,
                  in_channels=3):
         super(Model, self).__init__()
 
         self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
 
-        self.fc = nn.Linear(3, num_class)
+        self.point_transformer = PointTransformerCls(
+            num_point = None,
+            nblocks = None,
+            nneighbor = None,
+            num_class = 120,
+            input_dim = None,
+            transformer_dim = None
+        )
 
     def forward(self, x):
         N, C, T, V, M = x.size()
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
         x = self.data_bn(x)
-        x = x.view(N * M, V, C, T).permute(0, 2, 3, 1).contiguous()
+        x = x.view(N, M * V * C * T).contiguous()
 
+        x = self.point_transformer(x)
 
-        out = x
-        out_channels = out.size(1)
-
-        # 合并 CV 两个维度
-        out_N, out_C, out_T, out_V = out.size()
-        out = out.permute(0, 2, 1, 3).contiguous()
-
-        out = out.view(out_N, out_T, out_C * out_V)
-        out = out.permute(0, 2, 1).contiguous()
-
-        # 将graph的25个node在这里提前取平均值, 为后面TRM做出准备
-        # out = out.mean(3)
-
-        out = out.view(N, M, out_channels, -1)
-
-        # 先对human取均值
-        out = out.mean(1)  # Average pool number of bodies in the sequence
-
-        # out = self.vim(out)
-        return out
+        return x
 
 
 class TransitionDown(nn.Module):
@@ -57,56 +43,23 @@ class TransitionDown(nn.Module):
         return self.sa(xyz, points)
 
 
-class TransitionUp(nn.Module):
-    def __init__(self, dim1, dim2, dim_out):
-        class SwapAxes(nn.Module):
-            def __init__(self):
-                super().__init__()
-
-            def forward(self, x):
-                return x.transpose(1, 2)
-
-        super().__init__()
-        self.fc1 = nn.Sequential(
-            nn.Linear(dim1, dim_out),
-            SwapAxes(),
-            nn.BatchNorm1d(dim_out),  # TODO
-            SwapAxes(),
-            nn.ReLU(),
-        )
-        self.fc2 = nn.Sequential(
-            nn.Linear(dim2, dim_out),
-            SwapAxes(),
-            nn.BatchNorm1d(dim_out),  # TODO
-            SwapAxes(),
-            nn.ReLU(),
-        )
-        self.fp = PointNetFeaturePropagation(-1, [])
-
-    def forward(self, xyz1, points1, xyz2, points2):
-        feats1 = self.fc1(points1)
-        feats2 = self.fc2(points2)
-        feats1 = self.fp(xyz2.transpose(1, 2), xyz1.transpose(1, 2), None, feats1.transpose(1, 2)).transpose(1, 2)
-        return feats1 + feats2
-
-
 class Backbone(nn.Module):
-    def __init__(self, cfg):
+    def __init__(self, num_point, nblocks, nneighbor, num_class, input_dim, transformer_dim):
         super().__init__()
-        npoints, nblocks, nneighbor, n_c, d_points = cfg.num_point, cfg.model.nblocks, cfg.model.nneighbor, cfg.num_class, cfg.input_dim
+        npoints, nblocks, nneighbor, n_c, d_points = num_point, nblocks, nneighbor, num_class, input_dim
         self.fc1 = nn.Sequential(
             nn.Linear(d_points, 32),
             nn.ReLU(),
             nn.Linear(32, 32)
         )
-        self.transformer1 = TransformerBlock(32, cfg.model.transformer_dim, nneighbor)
+        self.transformer1 = TransformerBlock(32, transformer_dim, nneighbor)
         self.transition_downs = nn.ModuleList()
         self.transformers = nn.ModuleList()
         for i in range(nblocks):
             channel = 32 * 2 ** (i + 1)
             self.transition_downs.append(
                 TransitionDown(npoints // 4 ** (i + 1), nneighbor, [channel // 2 + 3, channel, channel]))
-            self.transformers.append(TransformerBlock(channel, cfg.model.transformer_dim, nneighbor))
+            self.transformers.append(TransformerBlock(channel, transformer_dim, nneighbor))
         self.nblocks = nblocks
 
     def forward(self, x):
@@ -122,10 +75,10 @@ class Backbone(nn.Module):
 
 
 class PointTransformerCls(nn.Module):
-    def __init__(self, cfg):
+    def __init__(self, num_point, nblocks, nneighbor, num_class, input_dim, transformer_dim):
         super().__init__()
-        self.backbone = Backbone(cfg)
-        npoints, nblocks, nneighbor, n_c, d_points = cfg.num_point, cfg.model.nblocks, cfg.model.nneighbor, cfg.num_class, cfg.input_dim
+        self.backbone = Backbone(num_point, nblocks, nneighbor, num_class, input_dim, transformer_dim)
+        npoints, nblocks, nneighbor, n_c, d_points = num_point, nblocks, nneighbor, num_class, input_dim
         self.fc2 = nn.Sequential(
             nn.Linear(32 * 2 ** nblocks, 256),
             nn.ReLU(),
@@ -140,47 +93,6 @@ class PointTransformerCls(nn.Module):
         res = self.fc2(points.mean(1))
         return res
 
-
-class PointTransformerSeg(nn.Module):
-    def __init__(self, cfg):
-        super().__init__()
-        self.backbone = Backbone(cfg)
-        npoints, nblocks, nneighbor, n_c, d_points = cfg.num_point, cfg.model.nblocks, cfg.model.nneighbor, cfg.num_class, cfg.input_dim
-        self.fc2 = nn.Sequential(
-            nn.Linear(32 * 2 ** nblocks, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 32 * 2 ** nblocks)
-        )
-        self.transformer2 = TransformerBlock(32 * 2 ** nblocks, cfg.model.transformer_dim, nneighbor)
-        self.nblocks = nblocks
-        self.transition_ups = nn.ModuleList()
-        self.transformers = nn.ModuleList()
-        for i in reversed(range(nblocks)):
-            channel = 32 * 2 ** i
-            self.transition_ups.append(TransitionUp(channel * 2, channel, channel))
-            self.transformers.append(TransformerBlock(channel, cfg.model.transformer_dim, nneighbor))
-
-        self.fc3 = nn.Sequential(
-            nn.Linear(32, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, n_c)
-        )
-
-    def forward(self, x):
-        points, xyz_and_feats = self.backbone(x)
-        xyz = xyz_and_feats[-1][0]
-        points = self.transformer2(xyz, self.fc2(points))[0]
-
-        for i in range(self.nblocks):
-            points = self.transition_ups[i](xyz, points, xyz_and_feats[- i - 2][0], xyz_and_feats[- i - 2][1])
-            xyz = xyz_and_feats[- i - 2][0]
-            points = self.transformers[i](xyz, points)[0]
-
-        return self.fc3(points)
 
 
 class TransformerBlock(nn.Module):
