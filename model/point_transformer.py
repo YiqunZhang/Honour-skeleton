@@ -12,12 +12,13 @@ class Model(nn.Module):
                  num_class,
                  input_dim,
                  transformer_dim,
-                 num_person,
-                 in_channels
+                 num_point_original,
+                 num_person_original,
+                 in_channels_original
                  ):
         super(Model, self).__init__()
 
-        self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
+        self.data_bn = nn.BatchNorm1d(num_point_original * num_person_original * in_channels_original)
 
         self.point_transformer = PointTransformerCls(num_point, nblocks, nneighbor, num_class, input_dim, transformer_dim)
 

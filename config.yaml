@@ -8,8 +8,9 @@ model_args:
   input_dim: 1
   transformer_dim: 1
 
-  num_person: 2
-  in_channels: 3
+  num_point_original: 1
+  num_person_original: 2
+  in_channels_original: 3
 model_saved_name: ''
 
 # feeder
