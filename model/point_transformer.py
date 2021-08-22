@@ -6,28 +6,28 @@ from pointnet_util import PointNetFeaturePropagation, PointNetSetAbstraction, in
 
 class Model(nn.Module):
     def __init__(self,
-                 num_class,
                  num_point,
+                 nblocks,
+                 nneighbor,
+                 num_class,
+                 input_dim,
+                 transformer_dim,
                  num_person,
-                 in_channels=3):
+                 in_channels
+                 ):
         super(Model, self).__init__()
 
         self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
 
-        self.point_transformer = PointTransformerCls(
-            num_point = None,
-            nblocks = None,
-            nneighbor = None,
-            num_class = 120,
-            input_dim = None,
-            transformer_dim = None
-        )
+        self.point_transformer = PointTransformerCls(num_point, nblocks, nneighbor, num_class, input_dim, transformer_dim)
 
     def forward(self, x):
         N, C, T, V, M = x.size()
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
         x = self.data_bn(x)
         x = x.view(N, M * V * C * T).contiguous()
+
+
 
         x = self.point_transformer(x)
 
