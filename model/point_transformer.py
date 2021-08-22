@@ -4,6 +4,49 @@ import torch.nn.functional as F
 import numpy as np
 from pointnet_util import PointNetFeaturePropagation, PointNetSetAbstraction, index_points, square_distance
 
+class Model(nn.Module):
+    def __init__(self,
+                 num_class,
+                 num_point,
+                 num_person,
+                 num_gcn_scales,
+                 num_g3d_scales,
+                 graph,
+                 in_channels=3):
+        super(Model, self).__init__()
+
+        self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
+
+        self.fc = nn.Linear(3, num_class)
+
+    def forward(self, x):
+        N, C, T, V, M = x.size()
+        x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
+        x = self.data_bn(x)
+        x = x.view(N * M, V, C, T).permute(0, 2, 3, 1).contiguous()
+
+
+        out = x
+        out_channels = out.size(1)
+
+        # 合并 CV 两个维度
+        out_N, out_C, out_T, out_V = out.size()
+        out = out.permute(0, 2, 1, 3).contiguous()
+
+        out = out.view(out_N, out_T, out_C * out_V)
+        out = out.permute(0, 2, 1).contiguous()
+
+        # 将graph的25个node在这里提前取平均值, 为后面TRM做出准备
+        # out = out.mean(3)
+
+        out = out.view(N, M, out_channels, -1)
+
+        # 先对human取均值
+        out = out.mean(1)  # Average pool number of bodies in the sequence
+
+        # out = self.vim(out)
+        return out
+
 
 class TransitionDown(nn.Module):
     def __init__(self, k, nneighbor, channels):
