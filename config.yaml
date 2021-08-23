@@ -1,16 +1,9 @@
 # model
-model: model.point_transformer.Model
+model: model.point_transformer_skeleton.Model
 model_args:
-  num_point: 1
-  nblocks: 1
-  nneighbor: 2
-  num_class: 120
-  input_dim: 1
-  transformer_dim: 1
-
-  num_point_original: 1
-  num_person_original: 2
-  in_channels_original: 3
+  num_point: 25
+  num_person: 2
+  in_channels: 3
 model_saved_name: ''
 
 # feeder
@@ -35,9 +28,9 @@ step: [28, 36, 44, 52]
 base_lr: 0.05
 
 # batch size
-batch_size: 4
-forward_batch_size: 4
-test_batch_size: 4
+batch_size: 40
+forward_batch_size: 40
+test_batch_size: 40
 
 
 device:
