@@ -30,7 +30,6 @@ class Model(nn.Module):
         x = x.view(N, M * V * C, T) # batch_size * 15000 * 3
 
 
-
         x = self.point_transformer(x)
 
 
