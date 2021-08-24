@@ -152,9 +152,10 @@ class Model(nn.Module):
 
     def forward(self, x):
         N, C, T, V, M = x.size()
+
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
         x = self.data_bn(x)
-        x = x.view(N * M, V, C, T).permute(0,2,3,1).contiguous()
+        x = x.view(N, M * V, C, T).permute(0,2,3,1).contiguous()
 
         # Apply activation to the sum of the pathways
         # x = F.relu(self.sgcn1(x) + self.gcn3d1(x), inplace=True)
@@ -171,9 +172,9 @@ class Model(nn.Module):
 
         out = x
         out_channels = out.size(1)
-        out = out.view(N, M, out_channels, -1)
-        out = out.mean(3)   # Global Average Pooling (Spatial+Temporal)
-        out = out.mean(1)   # Average pool number of bodies in the sequence
+        out = out.view(N, out_channels, -1)
+        out = out.mean(2)   # Global Average Pooling (Spatial+Temporal)
+        # out = out.mean(1)   # Average pool number of bodies in the sequence
 
         out = self.fc(out)
         return out
