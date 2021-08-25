@@ -39,10 +39,11 @@ device:
 - 1
 - 0
 
-start_epoch: 21
-num_epoch: 60
 eval_interval: 1
 eval_start: 1
+
+start_epoch: 21
+num_epoch: 60
 
 checkpoint: /home/ankin/skeleton/workdir/checkpoints/checkpoint-21-fwbz90-14700.pt
 weights: /home/ankin/skeleton/workdir/weights/weights-21-14700.pt
