@@ -39,13 +39,13 @@ device:
 - 1
 - 0
 
-start_epoch: 0
+start_epoch: 23
 num_epoch: 60
 eval_interval: 1
 eval_start: 1
 
-# checkpoint: ./workdir/checkpoints/checkpoint-44-fwbz16-86636.pt
-# weights: ./workdir/weights/weights-44-86636.pt
+checkpoint: /home/ankin/skeleton/workdir/checkpoints/checkpoint-23-fwbz90-11254.pt
+weights: /home/ankin/skeleton/workdir/weights/weights-23-11254.pt
 
 amp_opt_level: 1
 
