@@ -152,6 +152,12 @@ class Model(nn.Module):
 
     def forward(self, x):
         N, C, T, V, M = x.size()
+
+        # 修改tensor， 使第二个人和第一个人一样
+        for i in range(N):
+            if x[i, :, :, :, 1].sum().item() == 0:
+                x[i, :, :, :, 1] = x[i, :, :, :, 0]
+
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
         x = self.data_bn(x)
         x = x.view(N * M, V, C, T).permute(0,2,3,1).contiguous()
