@@ -1,3 +1,13 @@
+# log
+deep_log_tool_args:
+  username: test
+  password: test
+  title: msg3d
+  comments: baseline
+  dataset: NTU120
+  task: skeleton
+
+
 # model
 model: model.msg3d.Model
 model_args:

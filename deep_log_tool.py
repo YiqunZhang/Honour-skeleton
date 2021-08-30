@@ -6,8 +6,10 @@ import yaml
 
 class DeepLogTool():
 
+    temp_logdetail_dic = {}
+
     def __init__(self):
-        self.url = 'http://localhost:8080/'
+        self.url = 'http://10.10.2.3:8080/'
         self.session = requests.Session()
         self.log_id = "0"
 

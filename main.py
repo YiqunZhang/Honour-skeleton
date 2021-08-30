@@ -20,6 +20,8 @@ from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import MultiStepLR
 import apex
 
+from deep_log_tool import DeepLogTool
+
 from utils import count_params, import_class
 
 
@@ -214,6 +216,12 @@ def get_parser():
         default=False,
         help='Debug mode; default false')
 
+    parser.add_argument(
+        '--deep-log-tool-args',
+        type=dict,
+        default=dict(),
+        help='the arguments of model')
+
     return parser
 
 
@@ -222,7 +230,25 @@ class Processor():
 
     def __init__(self, arg):
         self.arg = arg
+        arg.work_dir = arg.work_dir + "/" + time.strftime("%Y-%m-%d--%H-%M-%S", time.localtime())
+
+        self.deep_log_tool = DeepLogTool()
+        if not self.deep_log_tool.login(arg.deep_log_tool_args['username'], arg.deep_log_tool_args['password']):
+            print("Deep Log Tool Server connection failed")
+            quit()
+
+        self.deep_log_tool.create_new_log(arg.deep_log_tool_args['title'],
+                                          arg.deep_log_tool_args['comments'],
+                                          arg.deep_log_tool_args['dataset'],
+                                          arg.deep_log_tool_args['task'],
+                                          arg.num_epoch)
+
         self.save_arg()
+
+
+
+
+
         if arg.phase == 'train':
             # Added control through the command line
             arg.train_feeder_args['debug'] = arg.train_feeder_args['debug'] or self.arg.debug
@@ -247,6 +273,15 @@ class Processor():
                 self.train_writer = SummaryWriter(os.path.join(logdir, 'debug'), 'debug')
 
         self.load_model()
+
+        # 上传key-code到deeplogtool服务器
+        for root, dirs, files in os.walk(arg.work_dir):
+            for file in files:
+                file_name = os.path.join(root, file)
+                if file_name.split('.')[-1] != 'py':
+                    continue
+                self.deep_log_tool.upload(file_name, 'key code')
+
         self.load_param_groups()
         self.load_optimizer()
         self.load_lr_scheduler()
@@ -409,6 +444,7 @@ class Processor():
             os.makedirs(self.arg.work_dir)
         with open(os.path.join(self.arg.work_dir, 'config.yaml'), 'w') as f:
             yaml.dump(arg_dict, f)
+        self.deep_log_tool.upload_config(os.path.join(self.arg.work_dir, 'config.yaml'))
 
     def print_time(self):
         localtime = time.asctime(time.localtime(time.time()))
@@ -459,6 +495,7 @@ class Processor():
         self.save_states(epoch, weights, out_folder, weights_name)
 
     def train(self, epoch, save_model=False):
+        self.deep_log_tool.temp_logdetail_dic['startTime'] = self.timestamp()
         self.model.train()
         loader = self.data_loader['train']
         loss_values = []
@@ -467,6 +504,7 @@ class Processor():
         timer = dict(dataloader=0.001, model=0.001, statistics=0.001)
 
         current_lr = self.optimizer.param_groups[0]['lr']
+        self.deep_log_tool.temp_logdetail_dic['learningRate'] = current_lr
         self.print_log(f'Training epoch: {epoch + 1}, LR: {current_lr:.4f}')
 
         process = tqdm(loader, dynamic_ncols=True)
@@ -513,6 +551,7 @@ class Processor():
 
                 # Display loss
                 process.set_description(f'(BS {real_batch_size}) loss: {loss.item():.4f}')
+                self.deep_log_tool.temp_logdetail_dic['trainLoss'] = loss.item()
 
                 value, predict_label = torch.max(output, 1)
                 acc = torch.mean((predict_label == batch_label).float())
@@ -555,6 +594,7 @@ class Processor():
             # save training checkpoint & weights
             self.save_weights(epoch + 1)
             self.save_checkpoint(epoch + 1)
+        self.deep_log_tool.temp_logdetail_dic['trainTime'] = self.timestamp() - self.deep_log_tool.temp_logdetail_dic['startTime']
 
     def eval(self, epoch, save_score=False, loader_name=['test'], wrong_file=None, result_file=None):
         # Skip evaluation if too early
@@ -605,6 +645,9 @@ class Processor():
             if accuracy > self.best_acc:
                 self.best_acc = accuracy
                 self.best_acc_epoch = epoch + 1
+                self.deep_log_tool.temp_logdetail_dic['bestln'] = ln
+
+            self.deep_log_tool.temp_logdetail_dic['accuracy'] = accuracy
 
             print('Accuracy: ', accuracy, ' model: ', self.arg.work_dir)
             if self.arg.phase == 'train' and not self.arg.debug:
@@ -614,15 +657,21 @@ class Processor():
 
             score_dict = dict(zip(self.data_loader[ln].dataset.sample_name, score))
             self.print_log(f'\tMean {ln} loss of {len(self.data_loader[ln])} batches: {np.mean(loss_values)}.')
+            self.deep_log_tool.temp_logdetail_dic['testLoss'] = np.mean(loss_values)
+
             for k in self.arg.show_topk:
                 self.print_log(f'\tTop {k}: {100 * self.data_loader[ln].dataset.top_k(score, k):.2f}%')
 
             if save_score:
+
                 with open('{}/epoch{}_{}_score.pkl'.format(self.arg.work_dir, epoch + 1, ln), 'wb') as f:
                     pickle.dump(score_dict, f)
 
         # Empty cache after evaluation
         torch.cuda.empty_cache()
+
+        self.deep_log_tool.temp_logdetail_dic['testTime'] = self.timestamp() - self.deep_log_tool.temp_logdetail_dic[
+            'startTime'] - self.deep_log_tool.temp_logdetail_dic['trainTime']
 
     def start(self):
         if self.arg.phase == 'train':
@@ -634,6 +683,15 @@ class Processor():
                 self.train(epoch, save_model=save_model)
                 self.eval(epoch, save_score=self.arg.save_score, loader_name=['test'])
 
+                self.deep_log_tool.upload_log_detail(epoch,
+                                                     self.deep_log_tool.temp_logdetail_dic['accuracy'],
+                                                     self.deep_log_tool.temp_logdetail_dic['trainLoss'],
+                                                     self.deep_log_tool.temp_logdetail_dic['testLoss'],
+                                                     self.deep_log_tool.temp_logdetail_dic['learningRate'],
+                                                     self.deep_log_tool.temp_logdetail_dic['startTime'],
+                                                     self.deep_log_tool.temp_logdetail_dic['trainTime'],
+                                                     self.deep_log_tool.temp_logdetail_dic['testTime'])
+
             num_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
             self.print_log(f'Best accuracy: {self.best_acc}')
             self.print_log(f'Epoch number: {self.best_acc_epoch}')
@@ -644,6 +702,11 @@ class Processor():
             self.print_log(f'Batch Size: {self.arg.batch_size}')
             self.print_log(f'Forward Batch Size: {self.arg.forward_batch_size}')
             self.print_log(f'Test Batch Size: {self.arg.test_batch_size}')
+
+            self.deep_log_tool.done_log()
+            self.deep_log_tool.upload('{}/epoch{}_{}_score.pkl'.format(self.arg.work_dir, self.best_acc_epoch, self.deep_log_tool.temp_logdetail_dic['bestln']))
+
+
 
         elif self.arg.phase == 'test':
             if not self.arg.test_feeder_args['debug']:
