@@ -1,10 +1,10 @@
 # log
 deep_log_tool_args:
-  username: test
-  password: test
+  username: 15098144981
+  password: 2312
   title: msg3d
   comments: baseline
-  dataset: NTU120
+  dataset: NTU60
   task: skeleton
 
 
@@ -23,12 +23,12 @@ model_saved_name: ''
 # feeder
 feeder: feeders.feeder.Feeder
 test_feeder_args:
-  data_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/val_data_joint.npy
-  label_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/val_label.pkl
+  data_path: /home/ankin/skeleton/data/NTU/ntu60/xsub/val_data_joint.npy
+  label_path: /home/ankin/skeleton/data/NTU/ntu60/xsub/val_label.pkl
 train_feeder_args:
-  data_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/train_data_joint.npy
+  data_path: /home/ankin/skeleton/data/NTU/ntu60/xsub/train_data_joint.npy
   debug: false
-  label_path: /home/ankin/skeleton/data/NTU_120/ntu120/xsub/train_label.pkl
+  label_path: /home/ankin/skeleton/data/NTU/ntu60/xsub/train_label.pkl
   normalization: false
   random_choose: false
   random_move: false
