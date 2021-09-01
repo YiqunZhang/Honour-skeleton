@@ -495,7 +495,7 @@ class Processor():
         self.save_states(epoch, weights, out_folder, weights_name)
 
     def train(self, epoch, save_model=False):
-        self.deep_log_tool.temp_logdetail_dic['startTime'] = self.timestamp()
+        self.deep_log_tool.temp_logdetail_dic['startTime'] = self.deep_log_tool.timestamp()
         self.model.train()
         loader = self.data_loader['train']
         loss_values = []
@@ -594,7 +594,7 @@ class Processor():
             # save training checkpoint & weights
             self.save_weights(epoch + 1)
             self.save_checkpoint(epoch + 1)
-        self.deep_log_tool.temp_logdetail_dic['trainTime'] = self.timestamp() - self.deep_log_tool.temp_logdetail_dic['startTime']
+        self.deep_log_tool.temp_logdetail_dic['trainTime'] = self.deep_log_tool.timestamp() - self.deep_log_tool.temp_logdetail_dic['startTime']
 
     def eval(self, epoch, save_score=False, loader_name=['test'], wrong_file=None, result_file=None):
         # Skip evaluation if too early
@@ -670,7 +670,7 @@ class Processor():
         # Empty cache after evaluation
         torch.cuda.empty_cache()
 
-        self.deep_log_tool.temp_logdetail_dic['testTime'] = self.timestamp() - self.deep_log_tool.temp_logdetail_dic[
+        self.deep_log_tool.temp_logdetail_dic['testTime'] = self.deep_log_tool.timestamp() - self.deep_log_tool.temp_logdetail_dic[
             'startTime'] - self.deep_log_tool.temp_logdetail_dic['trainTime']
 
     def start(self):
@@ -704,7 +704,7 @@ class Processor():
             self.print_log(f'Test Batch Size: {self.arg.test_batch_size}')
 
             self.deep_log_tool.done_log()
-            self.deep_log_tool.upload('{}/epoch{}_{}_score.pkl'.format(self.arg.work_dir, self.best_acc_epoch, self.deep_log_tool.temp_logdetail_dic['bestln']))
+            self.deep_log_tool.upload('{}/epoch{}_{}_score.pkl'.format(self.arg.work_dir, self.best_acc_epoch, self.deep_log_tool.temp_logdetail_dic['bestln']),'pkl')
 
 
 
