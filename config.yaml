@@ -2,8 +2,8 @@
 deep_log_tool_args:
   username: 15098144981
   password: 2312
-  title: msg3d
-  comments: baseline
+  title: msg3d_qzy
+  comments: baseline_qzy
   dataset: NTU60
   task: skeleton
 
