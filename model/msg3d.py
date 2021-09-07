@@ -114,9 +114,6 @@ class Model(nn.Module):
                  num_g3d_scales,
                  graph,
                  in_channels=3,
-                 to_use_final_fc=True,
-                 to_fc_last=True,
-                 frame_len=300,
                  nonlinear='relu',
                  **kwargs):
         super(Model, self).__init__()
@@ -172,27 +169,7 @@ class Model(nn.Module):
 
 
         # 最后一层加一个fc
-        self.to_use_final_fc = to_use_final_fc
-        if self.to_use_final_fc:
-            self.fc = nn.Linear(c3, num_class)
-
-        # Concat multi-skip
-        self.fc_multi_skip = nn.Sequential(
-            # nn.Linear(c1 + c2 + c3, c3),
-            nn.Linear(c1 + c3, c3),
-            self.nonlinear_f,
-            nn.Linear(c3, c3),
-            self.nonlinear_f
-        )
-
-        # For two stream networks
-        self.to_fc_last = to_fc_last
-
-        # Angle with the body center
-        self.to_use_angle_adj = False
-
-        # Attention graph
-        self.to_use_att_conv_layer = False
+        self.fc = nn.Linear(c3, num_class)
 
     def forward(self, x):
         N, C, T, V, M = x.size()
