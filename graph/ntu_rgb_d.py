@@ -3,7 +3,6 @@ sys.path.insert(0, '')
 sys.path.extend(['../'])
 
 import numpy as np
-
 from graph import tools
 
 num_node = 25
@@ -20,6 +19,7 @@ inward_ori_index = [(1, 2), (2, 21), (3, 21), (4, 3), (5, 21), (6, 5), (7, 6),
                     (20+25, 19+25), (22+25, 23+25), (23+25, 8+25), (24+25, 25+25), (25+25, 12+25),
 
                     (1,1+25), (6,6+25), (16,16+25), (20,20+25), (25,25+25)
+
                     ]
 
 inward = [(i - 1, j - 1) for (i, j) in inward_ori_index]
