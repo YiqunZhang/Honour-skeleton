@@ -26,7 +26,6 @@ inward = [(i - 1, j - 1) for (i, j) in inward_ori_index]
 outward = [(j, i) for (i, j) in inward]
 neighbor = inward + outward
 
-
 class AdjMatrixGraph:
     def __init__(self, *args, **kwargs):
         self.edges = neighbor
