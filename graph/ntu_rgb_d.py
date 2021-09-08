@@ -5,7 +5,7 @@ sys.path.extend(['../'])
 import numpy as np
 from graph import tools
 
-num_node = 25
+num_node = 25 * 2
 self_link = [(i, i) for i in range(num_node)]
 
 inward_ori_index = [(1, 2), (2, 21), (3, 21), (4, 3), (5, 21), (6, 5), (7, 6),
