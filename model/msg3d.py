@@ -1,4 +1,5 @@
 import sys
+
 sys.path.insert(0, '')
 
 import math
@@ -75,10 +76,9 @@ class MultiWindow_MS_G3D(nn.Module):
                  out_channels,
                  A_binary,
                  num_scales,
-                 window_sizes=[3,5],
+                 window_sizes=[3, 5],
                  window_stride=1,
-                 window_dilations=[1,1]):
-
+                 window_dilations=[1, 1]):
         super().__init__()
         self.gcn3d = nn.ModuleList([
             MS_G3D(
@@ -120,13 +120,13 @@ class Model(nn.Module):
 
         # channels
         c1 = 96
-        c2 = c1 * 2     # 192
-        c3 = c2 * 2     # 384
+        c2 = c1 * 2  # 192
+        c3 = c2 * 2  # 384
 
         # r=3 STGC blocks
         # self.gcn3d1 = MultiWindow_MS_G3D(3, c1, A_binary, num_g3d_scales, window_stride=1)
         self.sgcn1 = nn.Sequential(
-            MS_GCN(num_gcn_scales, in_channels, c1, A_binary, disentangled_agg=True),
+            MS_GCN(num_gcn_scales, 3, c1, A_binary, disentangled_agg=True),
             MS_TCN(c1, c1),
             MS_TCN(c1, c1))
         self.sgcn1[-1].act = nn.Identity()
@@ -153,9 +153,14 @@ class Model(nn.Module):
     def forward(self, x):
         N, C, T, V, M = x.size()
 
+        # 修改tensor， 使第二个人和第一个人一样
+        for i in range(N):
+            if x[i, :, :, :, 1].sum().item() == 0:
+                x[i, :, :, :, 1] = x[i, :, :, :, 0]
+
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
         x = self.data_bn(x)
-        x = x.view(N * M, V, C, T).permute(0,2,3,1).contiguous()
+        x = x.view(N, M * V, C, T).permute(0, 2, 3, 1).contiguous()
 
         # Apply activation to the sum of the pathways
         # x = F.relu(self.sgcn1(x) + self.gcn3d1(x), inplace=True)
@@ -176,7 +181,6 @@ class Model(nn.Module):
         out = out.mean(2)  # Global Average Pooling (Spatial+Temporal)
         # out = out.mean(1)   # Average pool number of bodies in the sequence
 
-        
         out = self.fc(out)
         return out
 
@@ -184,6 +188,7 @@ class Model(nn.Module):
 if __name__ == "__main__":
     # For debugging purposes
     import sys
+
     sys.path.append('..')
 
     model = Model(
@@ -196,7 +201,7 @@ if __name__ == "__main__":
     )
 
     N, C, T, V, M = 6, 3, 50, 25, 2
-    x = torch.randn(N,C,T,V,M)
+    x = torch.randn(N, C, T, V, M)
     model.forward(x)
 
     print('Model total # params:', count_params(model))

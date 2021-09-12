@@ -9,7 +9,7 @@ class DeepLogTool():
     temp_logdetail_dic = {}
 
     def __init__(self):
-        self.url = 'http://ankin.cc:50102/'
+        self.url = 'http://10.10.5.1:8080/'
         self.session = requests.Session()
         self.log_id = "0"
 
