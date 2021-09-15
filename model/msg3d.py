@@ -177,12 +177,9 @@ class Model(nn.Module):
 
         out = x
         out_channels = out.size(1)
-        out = out.view(N, out_channels, -1)
+        out = out.view(N, M, out_channels, -1)
+        out = out.mean(1)  # Average pool number of bodies in the sequence
         out = out.mean(2)  # Global Average Pooling (Spatial+Temporal)
-
-        # division
-        out = out.view(N, M, -1)
-        out = out.mean(1)   # Average pool number of bodies in the sequence
 
         out = self.fc(out)
         return out

@@ -3,7 +3,7 @@ deep_log_tool_args:
   username: 15098144981
   password: 2312
   title: msg3d
-  comments: human lock 全部对应连接， num_gcn_scales = 18
+  comments: human_lock 全部对应连接， num_gcn_scales = 18, division
   dataset: NTU60
   task: skeleton
 
