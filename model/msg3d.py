@@ -175,10 +175,12 @@ class Model(nn.Module):
         x = F.relu(self.sgcn3(x), inplace=True)
         x = self.tcn3(x)
 
-        out = x
+        out = x  # out: N, C, T, M*V
         out_channels = out.size(1)
-        out = out.view(N, M, out_channels, -1)
-        out = out.mean(1)  # Average pool number of bodies in the sequence
+        out = out.view(N, out_channels, T, M, V)  # out: N, C, T, M, V
+        out = out.permute(0, 1, 3, 2, 4).contiguous()  # out: N, C, M, T, V
+        out = out.view(N, C * M, -1)
+
         out = out.mean(2)  # Global Average Pooling (Spatial+Temporal)
 
         out = self.fc(out)
