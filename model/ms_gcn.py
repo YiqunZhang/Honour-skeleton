@@ -55,7 +55,7 @@ class MultiScale_GraphConv(nn.Module):
 
 
 if __name__ == "__main__":
-    from graph.ntu_rgb_d import AdjMatrixGraph
+    from graph.ntu_rgb_d_a import AdjMatrixGraph
     graph = AdjMatrixGraph()
     A_binary = graph.A_binary
     msgcn = MultiScale_GraphConv(num_scales=15, in_channels=3, out_channels=64, A_binary=A_binary)

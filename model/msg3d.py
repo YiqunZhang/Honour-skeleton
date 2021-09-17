@@ -109,12 +109,16 @@ class Model(nn.Module):
                  num_person,
                  num_gcn_scales,
                  num_g3d_scales,
-                 graph,
+                 graph_a,
+                 graph_b,
                  in_channels=3):
         super(Model, self).__init__()
 
-        Graph = import_class(graph)
-        A_binary = Graph().A_binary
+        Graph_a = import_class(graph_a)
+        A_binary_a = Graph_a().A_binary
+
+        Graph_b = import_class(graph_b)
+        A_binary_b = Graph_b().A_binary
 
         self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
 
@@ -122,13 +126,13 @@ class Model(nn.Module):
         c1 = 96
         c2 = c1 * 2  # 192
         c3 = c2 * 2  # 384
-        c4 = c3 * num_person # 768
+        c4 = c3 * num_person  # 768
         c5 = c4
 
         # r=3 STGC blocks
         # self.gcn3d1 = MultiWindow_MS_G3D(3, c1, A_binary, num_g3d_scales, window_stride=1)
         self.sgcn1 = nn.Sequential(
-            MS_GCN(num_gcn_scales, 3, c1, A_binary, disentangled_agg=True),
+            MS_GCN(num_gcn_scales, 3, c1, A_binary_a, disentangled_agg=True),
             MS_TCN(c1, c1),
             MS_TCN(c1, c1))
         self.sgcn1[-1].act = nn.Identity()
@@ -136,7 +140,7 @@ class Model(nn.Module):
 
         # self.gcn3d2 = MultiWindow_MS_G3D(c1, c2, A_binary, num_g3d_scales, window_stride=2)
         self.sgcn2 = nn.Sequential(
-            MS_GCN(num_gcn_scales, c1, c1, A_binary, disentangled_agg=True),
+            MS_GCN(num_gcn_scales, c1, c1, A_binary_a, disentangled_agg=True),
             MS_TCN(c1, c2, stride=2),
             MS_TCN(c2, c2))
         self.sgcn2[-1].act = nn.Identity()
@@ -144,20 +148,20 @@ class Model(nn.Module):
 
         # self.gcn3d3 = MultiWindow_MS_G3D(c2, c3, A_binary, num_g3d_scales, window_stride=2)
         self.sgcn3 = nn.Sequential(
-            MS_GCN(num_gcn_scales, c2, c2, A_binary, disentangled_agg=True),
+            MS_GCN(num_gcn_scales, c2, c2, A_binary_a, disentangled_agg=True),
             MS_TCN(c2, c3, stride=2),
             MS_TCN(c3, c3))
         self.sgcn3[-1].act = nn.Identity()
         self.tcn3 = MS_TCN(c3, c3)
 
+        # ==============
 
         self.sgcn4 = nn.Sequential(
-            MS_GCN(num_gcn_scales, c4, c4, A_binary, disentangled_agg=True),
-            MS_TCN(c4, c5, stride=2),
+            MS_GCN(num_gcn_scales, c4, c4, A_binary_b, disentangled_agg=True),
+            MS_TCN(c4, c5, stride=1),
             MS_TCN(c5, c5))
         self.sgcn4[-1].act = nn.Identity()
         self.tcn4 = MS_TCN(c5, c5)
-
 
         self.fc = nn.Linear(c5, num_class)
 
@@ -186,18 +190,17 @@ class Model(nn.Module):
         x = F.relu(self.sgcn3(x), inplace=True)
         x = self.tcn3(x)
 
-        out = x  # out: N, C, T, M*V
-
-        N, out_channels, out_T, _ = x.size()
+        N, out_channels, out_T, _ = x.size()  # x: N, C, T, M*V
 
         x = x.view(N, out_channels, out_T, M, V)  # out: N, C, T, M, V
         x = x.permute(0, 1, 3, 2, 4).contiguous()  # out: N, C, M, T, V
-        x = x.view(N, out_channels * M, out_T, V) # out: N, C * M, T, V
+        x = x.view(N, out_channels * M, out_T, V)  # out: N, C * M, T, V
 
         x = F.relu(self.sgcn4(x), inplace=True)
         x = self.tcn4(x)
 
         out = x
+        out_channels = out.size(1)
         out = out.view(N, out_channels, -1)
         out = out.mean(2)  # Global Average Pooling (Spatial+Temporal)
 
