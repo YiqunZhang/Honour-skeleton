@@ -122,6 +122,8 @@ class Model(nn.Module):
         c1 = 96
         c2 = c1 * 2  # 192
         c3 = c2 * 2  # 384
+        c4 = c3 * num_person # 768
+        c5 = c4
 
         # r=3 STGC blocks
         # self.gcn3d1 = MultiWindow_MS_G3D(3, c1, A_binary, num_g3d_scales, window_stride=1)
@@ -148,7 +150,16 @@ class Model(nn.Module):
         self.sgcn3[-1].act = nn.Identity()
         self.tcn3 = MS_TCN(c3, c3)
 
-        self.fc = nn.Linear(c3 * num_person, num_class)
+
+        self.sgcn4 = nn.Sequential(
+            MS_GCN(num_gcn_scales, c4, c4, A_binary, disentangled_agg=True),
+            MS_TCN(c4, c5, stride=2),
+            MS_TCN(c5, c5))
+        self.sgcn4[-1].act = nn.Identity()
+        self.tcn4 = MS_TCN(c5, c5)
+
+
+        self.fc = nn.Linear(c5, num_class)
 
     def forward(self, x):
         N, C, T, V, M = x.size()
@@ -179,10 +190,15 @@ class Model(nn.Module):
 
         N, out_channels, out_T, _ = x.size()
 
-        out = out.view(N, out_channels, out_T, M, V)  # out: N, C, T, M, V
-        out = out.permute(0, 1, 3, 2, 4).contiguous()  # out: N, C, M, T, V
-        out = out.view(N, out_channels * M, -1)
+        x = x.view(N, out_channels, out_T, M, V)  # out: N, C, T, M, V
+        x = x.permute(0, 1, 3, 2, 4).contiguous()  # out: N, C, M, T, V
+        x = x.view(N, out_channels * M, out_T, V) # out: N, C * M, T, V
 
+        x = F.relu(self.sgcn4(x), inplace=True)
+        x = self.tcn4(x)
+
+        out = x
+        out = out.view(N, out_channels, -1)
         out = out.mean(2)  # Global Average Pooling (Spatial+Temporal)
 
         out = self.fc(out)
