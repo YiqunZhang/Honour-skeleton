@@ -15,92 +15,6 @@ from model.mlp import MLP
 from model.activation import activation_factory
 
 
-class MS_G3D(nn.Module):
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 A_binary,
-                 num_scales,
-                 window_size,
-                 window_stride,
-                 window_dilation,
-                 embed_factor=1,
-                 activation='relu'):
-        super().__init__()
-        self.window_size = window_size
-        self.out_channels = out_channels
-        self.embed_channels_in = self.embed_channels_out = out_channels // embed_factor
-        if embed_factor == 1:
-            self.in1x1 = nn.Identity()
-            self.embed_channels_in = self.embed_channels_out = in_channels
-            # The first STGC block changes channels right away; others change at collapse
-            if in_channels == 3:
-                self.embed_channels_out = out_channels
-        else:
-            self.in1x1 = MLP(in_channels, [self.embed_channels_in])
-
-        self.gcn3d = nn.Sequential(
-            UnfoldTemporalWindows(window_size, window_stride, window_dilation),
-            SpatialTemporal_MS_GCN(
-                in_channels=self.embed_channels_in,
-                out_channels=self.embed_channels_out,
-                A_binary=A_binary,
-                num_scales=num_scales,
-                window_size=window_size,
-                use_Ares=True
-            )
-        )
-
-        self.out_conv = nn.Conv3d(self.embed_channels_out, out_channels, kernel_size=(1, self.window_size, 1))
-        self.out_bn = nn.BatchNorm2d(out_channels)
-
-    def forward(self, x):
-        N, _, T, V = x.shape
-        x = self.in1x1(x)
-        # Construct temporal windows and apply MS-GCN
-        x = self.gcn3d(x)
-
-        # Collapse the window dimension
-        x = x.view(N, self.embed_channels_out, -1, self.window_size, V)
-        x = self.out_conv(x).squeeze(dim=3)
-        x = self.out_bn(x)
-
-        # no activation
-        return x
-
-
-class MultiWindow_MS_G3D(nn.Module):
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 A_binary,
-                 num_scales,
-                 window_sizes=[3,5],
-                 window_stride=1,
-                 window_dilations=[1,1]):
-
-        super().__init__()
-        self.gcn3d = nn.ModuleList([
-            MS_G3D(
-                in_channels,
-                out_channels,
-                A_binary,
-                num_scales,
-                window_size,
-                window_stride,
-                window_dilation
-            )
-            for window_size, window_dilation in zip(window_sizes, window_dilations)
-        ])
-
-    def forward(self, x):
-        # Input shape: (N, C, T, V)
-        out_sum = 0
-        for gcn3d in self.gcn3d:
-            out_sum += gcn3d(x)
-        # no activation
-        return out_sum
-
 
 class Model(nn.Module):
     def __init__(self,
@@ -118,84 +32,350 @@ class Model(nn.Module):
 
         self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
 
-        # channels
-        c1 = 96
-        c2 = c1 * 2     # 192
-        c3 = c2 * 2     # 384
 
-        # r=3 STGC blocks
-        # self.gcn3d1 = MultiWindow_MS_G3D(3, c1, A_binary, num_g3d_scales, window_stride=1)
-        self.sgcn1 = nn.Sequential(
-            MS_GCN(num_gcn_scales, 3, c1, A_binary, disentangled_agg=True),
-            MS_TCN(c1, c1),
-            MS_TCN(c1, c1))
-        self.sgcn1[-1].act = nn.Identity()
-        self.tcn1 = MS_TCN(c1, c1)
+        self.vim = VisionTransformer(
+            n_classes=120,
+            n_patches=300 * 25,
+            embed_dim=3,
+            depth=12,
+            n_heads=1
+        )
 
-        # self.gcn3d2 = MultiWindow_MS_G3D(c1, c2, A_binary, num_g3d_scales, window_stride=2)
-        self.sgcn2 = nn.Sequential(
-            MS_GCN(num_gcn_scales, c1, c1, A_binary, disentangled_agg=True),
-            MS_TCN(c1, c2, stride=2),
-            MS_TCN(c2, c2))
-        self.sgcn2[-1].act = nn.Identity()
-        self.tcn2 = MS_TCN(c2, c2)
-
-        # self.gcn3d3 = MultiWindow_MS_G3D(c2, c3, A_binary, num_g3d_scales, window_stride=2)
-        self.sgcn3 = nn.Sequential(
-            MS_GCN(num_gcn_scales, c2, c2, A_binary, disentangled_agg=True),
-            MS_TCN(c2, c3, stride=2),
-            MS_TCN(c3, c3))
-        self.sgcn3[-1].act = nn.Identity()
-        self.tcn3 = MS_TCN(c3, c3)
-
-        self.fc = nn.Linear(c3, num_class)
+        self.fc = nn.Linear(3, num_class)
 
     def forward(self, x):
         N, C, T, V, M = x.size()
-
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
         x = self.data_bn(x)
-        x = x.view(N * M, V, C, T).permute(0,2,3,1).contiguous()
+        x = x.view(N * M, V, C, T).permute(0, 2, 3, 1).contiguous()
 
-        # Apply activation to the sum of the pathways
-        # x = F.relu(self.sgcn1(x) + self.gcn3d1(x), inplace=True)
-        x = F.relu(self.sgcn1(x), inplace=True)
-        x = self.tcn1(x)
-
-        # x = F.relu(self.sgcn2(x) + self.gcn3d2(x), inplace=True)
-        x = F.relu(self.sgcn2(x), inplace=True)
-        x = self.tcn2(x)
-
-        # x = F.relu(self.sgcn3(x) + self.gcn3d3(x), inplace=True)
-        x = F.relu(self.sgcn3(x), inplace=True)
-        x = self.tcn3(x)
 
         out = x
         out_channels = out.size(1)
-        out = out.view(N, M, out_channels, -1)
-        out = out.mean(3)   # Global Average Pooling (Spatial+Temporal)
-        out = out.mean(1)   # Average pool number of bodies in the sequence
 
-        out = self.fc(out)
+        # 合并 CV 两个维度
+        out_N, out_C, out_T, out_V = out.size()
+        out = out.permute(0, 2, 1, 3).contiguous()
+
+        out = out.view(out_N, out_T, out_C * out_V)
+        out = out.permute(0, 2, 1).contiguous()
+
+        # 将graph的25个node在这里提前取平均值, 为后面TRM做出准备
+        # out = out.mean(3)
+
+        out = out.view(N, M, out_channels, -1)
+
+        # 先对human取均值
+        out = out.mean(1)  # Average pool number of bodies in the sequence
+
+        out = self.vim(out)
         return out
 
 
-if __name__ == "__main__":
-    # For debugging purposes
-    import sys
-    sys.path.append('..')
+class PatchEmbed(nn.Module):
+    pass
 
-    model = Model(
-        num_class=60,
-        num_point=25,
-        num_person=2,
-        num_gcn_scales=13,
-        num_g3d_scales=6,
-        graph='graph.ntu_rgb_d.AdjMatrixGraph'
-    )
+    def __init__(self):
+        super().__init__()
 
-    N, C, T, V, M = 6, 3, 50, 25, 2
-    x = torch.randn(N,C,T,V,M)
-    model.forward(x)
+    def forward(self, x):
+        # 输入shape = batch_size * channel * frames
 
-    print('Model total # params:', count_params(model))
+        x = x.transpose(1, 2)  # 输出shape = batch_size * frames * channel
+        return x
+
+
+class Attention(nn.Module):
+
+    def __init__(self,
+                 dim,  # channel
+                 n_heads,  # Multi-Head Attention 的 Head
+                 qkv_bias=True,  # Attention 的 qkv 是否添加 bias
+                 attn_p=0.,  # drop out
+                 proj_p=0.  # drop out
+                 ):
+        super().__init__()
+
+        # 对参数处理
+        self.n_heads = n_heads
+        self.dim = dim
+        self.head_dim = dim // n_heads
+        self.scale = self.head_dim ** -0.5
+
+        # 一些网络层
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+        self.attn_drop = nn.Dropout(attn_p)
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(proj_p)
+
+    def forward(self, x):
+        """Run forward pass.
+        Parameters
+        ----------
+        x : torch.Tensor
+            Shape `(n_samples, n_patches + 1, dim)`.
+        Returns
+        -------
+        torch.Tensor
+            Shape `(n_samples, n_patches + 1, dim)`.
+        """
+        n_samples, n_tokens, dim = x.shape
+
+        if dim != self.dim:
+            raise ValueError
+
+        qkv = self.qkv(x)  # (n_samples, n_patches + 1, 3 * dim)
+
+        qkv = qkv.reshape(
+            n_samples, n_tokens, 3, self.n_heads, self.head_dim
+        )  # (n_smaples, n_patches + 1, 3, n_heads, head_dim)
+
+        qkv = qkv.permute(
+            2, 0, 3, 1, 4
+        )  # (3, n_samples, n_heads, n_patches + 1, head_dim)
+
+        q, k, v = qkv[0], qkv[1], qkv[2]
+        k_t = k.transpose(-2, -1)  # (n_samples, n_heads, head_dim, n_patches + 1)
+        dp = (
+                     q @ k_t
+             ) * self.scale  # (n_samples, n_heads, n_patches + 1, n_patches + 1)
+        attn = dp.softmax(dim=-1)  # (n_samples, n_heads, n_patches + 1, n_patches + 1)
+        attn = self.attn_drop(attn)
+
+        weighted_avg = attn @ v  # (n_samples, n_heads, n_patches +1, head_dim)
+        weighted_avg = weighted_avg.transpose(
+            1, 2
+        )  # (n_samples, n_patches + 1, n_heads, head_dim)
+        weighted_avg = weighted_avg.flatten(2)  # (n_samples, n_patches + 1, dim)
+
+        x = self.proj(weighted_avg)  # (n_samples, n_patches + 1, dim)
+        x = self.proj_drop(x)  # (n_samples, n_patches + 1, dim)
+
+        return x
+
+
+class MLP(nn.Module):
+    """Multilayer perceptron.
+    Parameters
+    ----------
+    in_features : int
+        Number of input features.
+    hidden_features : int
+        Number of nodes in the hidden layer.
+    out_features : int
+        Number of output features.
+    p : float
+        Dropout probability.
+    Attributes
+    ----------
+    fc : nn.Linear
+        The First linear layer.
+    act : nn.GELU
+        GELU activation function.
+    fc2 : nn.Linear
+        The second linear layer.
+    drop : nn.Dropout
+        Dropout layer.
+    """
+
+    def __init__(self, in_features, hidden_features, out_features, p=0.):
+        super().__init__()
+        self.fc1 = nn.Linear(in_features, hidden_features)
+        self.act = nn.GELU()
+        self.fc2 = nn.Linear(hidden_features, out_features)
+        self.drop = nn.Dropout(p)
+
+    def forward(self, x):
+        """Run forward pass.
+        Parameters
+        ----------
+        x : torch.Tensor
+            Shape `(n_samples, n_patches + 1, in_features)`.
+        Returns
+        -------
+        torch.Tensor
+            Shape `(n_samples, n_patches +1, out_features)`
+        """
+        x = self.fc1(
+            x
+        )  # (n_samples, n_patches + 1, hidden_features)
+        x = self.act(x)  # (n_samples, n_patches + 1, hidden_features)
+        x = self.drop(x)  # (n_samples, n_patches + 1, hidden_features)
+        x = self.fc2(x)  # (n_samples, n_patches + 1, hidden_features)
+        x = self.drop(x)  # (n_samples, n_patches + 1, hidden_features)
+
+        return x
+
+
+class Block(nn.Module):
+    """Transformer block.
+    Parameters
+    ----------
+    dim : int
+        Embeddinig dimension.
+    n_heads : int
+        Number of attention heads.
+    mlp_ratio : float
+        Determines the hidden dimension size of the `MLP` module with respect
+        to `dim`.
+    qkv_bias : bool
+        If True then we include bias to the query, key and value projections.
+    p, attn_p : float
+        Dropout probability.
+    Attributes
+    ----------
+    norm1, norm2 : LayerNorm
+        Layer normalization.
+    attn : Attention
+        Attention module.
+    mlp : MLP
+        MLP module.
+    """
+
+    def __init__(self, dim, n_heads, mlp_ratio=4.0, qkv_bias=True, p=0., attn_p=0.):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(dim, eps=1e-6)
+        self.attn = Attention(
+            dim,
+            n_heads=n_heads,
+            qkv_bias=qkv_bias,
+            attn_p=attn_p,
+            proj_p=p
+        )
+        self.norm2 = nn.LayerNorm(dim, eps=1e-6)
+        hidden_features = int(dim * mlp_ratio)
+        self.mlp = MLP(
+            in_features=dim,
+            hidden_features=hidden_features,
+            out_features=dim,
+        )
+
+    def forward(self, x):
+        """Run forward pass.
+        Parameters
+        ----------
+        x : torch.Tensor
+            Shape `(n_samples, n_patches + 1, dim)`.
+        Returns
+        -------
+        torch.Tensor
+            Shape `(n_samples, n_patches + 1, dim)`.
+        """
+        x = x + self.attn(self.norm1(x))
+        x = x + self.mlp(self.norm2(x))
+
+        return x
+
+
+class VisionTransformer(nn.Module):
+    """Simplified implementation of the Vision transformer.
+    Parameters
+    ----------
+    img_size : int
+        Both height and the width of the image (it is a square).
+    patch_size : int
+        Both height and the width of the patch (it is a square).
+    in_chans : int
+        Number of input channels.
+    n_classes : int
+        Number of classes.
+    embed_dim : int
+        Dimensionality of the token/patch embeddings.
+    depth : int
+        Number of blocks.
+    n_heads : int
+        Number of attention heads.
+    mlp_ratio : float
+        Determines the hidden dimension of the `MLP` module.
+    qkv_bias : bool
+        If True then we include bias to the query, key and value projections.
+    p, attn_p : float
+        Dropout probability.
+    Attributes
+    ----------
+    patch_embed : PatchEmbed
+        Instance of `PatchEmbed` layer.
+    cls_token : nn.Parameter
+        Learnable parameter that will represent the first token in the sequence.
+        It has `embed_dim` elements.
+    pos_emb : nn.Parameter
+        Positional embedding of the cls token + all the patches.
+        It has `(n_patches + 1) * embed_dim` elements.
+    pos_drop : nn.Dropout
+        Dropout layer.
+    blocks : nn.ModuleList
+        List of `Block` modules.
+    norm : nn.LayerNorm
+        Layer normalization.
+    """
+
+    def __init__(
+            self,
+            n_classes=120,
+            n_patches=75,
+            embed_dim=384,
+            depth=12,
+            n_heads=8,
+            mlp_ratio=4.,
+            qkv_bias=True,
+            p=0.1,
+            attn_p=0.1,
+    ):
+        super().__init__()
+
+        self.patch_embed = PatchEmbed()
+        self.n_patches = n_patches
+
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.pos_embed = nn.Parameter(
+            torch.zeros(1, 1 + self.n_patches, embed_dim)
+        )
+        self.pos_drop = nn.Dropout(p=p)
+
+        self.blocks = nn.ModuleList(
+            [
+                Block(
+                    dim=embed_dim,
+                    n_heads=n_heads,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    p=p,
+                    attn_p=attn_p,
+                )
+                for _ in range(depth)
+            ]
+        )
+
+        self.norm = nn.LayerNorm(embed_dim, eps=1e-6)
+        self.head = nn.Linear(embed_dim, n_classes)
+
+    def forward(self, x):
+        """Run the forward pass.
+        Parameters
+        ----------
+        x : torch.Tensor
+            Shape `(n_samples, in_chans, img_size, img_size)`.
+        Returns
+        -------
+        logits : torch.Tensor
+            Logits over all the classes - `(n_samples, n_classes)`.
+        """
+        n_samples = x.shape[0]
+        x = self.patch_embed(x)
+
+        cls_token = self.cls_token.expand(
+            n_samples, -1, -1
+        )  # (n_samples, 1, embed_dim)
+        x = torch.cat((cls_token, x), dim=1)  # (n_samples, 1 + n_patches, embed_dim)
+        x = x + self.pos_embed  # (n_samples, 1 + n_patches, embed_dim)
+        x = self.pos_drop(x)
+
+        for block in self.blocks:
+            x = block(x)
+
+        x = self.norm(x)
+
+        cls_token_final = x[:, 0]  # just the CLS token
+        x = self.head(cls_token_final)
+
+        return x
