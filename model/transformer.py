@@ -15,7 +15,6 @@ from model.mlp import MLP
 from model.activation import activation_factory
 
 
-
 class Model(nn.Module):
     def __init__(self,
                  num_class,
@@ -33,43 +32,49 @@ class Model(nn.Module):
         self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
 
 
-        self.vim = VisionTransformer(
-            n_classes=120,
-            n_patches=300 * 25,
+        self.vim_s = VisionTransformer(
+            n_classes=130,
+            n_patches=50,
             embed_dim=3,
             depth=12,
             n_heads=1
         )
 
-        self.fc = nn.Linear(3, num_class)
+        self.vim_t = VisionTransformer(
+            n_classes=120,
+            n_patches=120,
+            embed_dim=300,
+            depth=12,
+            n_heads=1
+        )
+
+        self.fc = nn.Linear(120, num_class)
 
     def forward(self, x):
         N, C, T, V, M = x.size()
+
+        # 修改tensor， 使第二个人和第一个人一样
+        for i in range(N):
+            if x[i, :, :, :, 1].sum().item() == 0:
+                x[i, :, :, :, 1] = x[i, :, :, :, 0]
+
+        # 合并M和V两个维度
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
         x = self.data_bn(x)
-        x = x.view(N * M, V, C, T).permute(0, 2, 3, 1).contiguous()
+        x = x.view(N, M * V, C, T).permute(0, 3, 2, 1).contiguous() # N, T, C, MV
 
 
-        out = x
-        out_channels = out.size(1)
+        # 合并 N 和 T 两个维度
+        x = x.view(N * T, C, M * V)
+        x = self.vim_s(x)
 
-        # 合并 CV 两个维度
-        out_N, out_C, out_T, out_V = out.size()
-        out = out.permute(0, 2, 1, 3).contiguous()
+        x = x.view(N, T, -1)
 
-        out = out.view(out_N, out_T, out_C * out_V)
-        out = out.permute(0, 2, 1).contiguous()
+       # x = self.vim_t(x)
+        x = x.mean(1)
 
-        # 将graph的25个node在这里提前取平均值, 为后面TRM做出准备
-        # out = out.mean(3)
-
-        out = out.view(N, M, out_channels, -1)
-
-        # 先对human取均值
-        out = out.mean(1)  # Average pool number of bodies in the sequence
-
-        out = self.vim(out)
-        return out
+        # x = self.fc(x)
+        return x
 
 
 class PatchEmbed(nn.Module):
@@ -311,11 +316,11 @@ class VisionTransformer(nn.Module):
 
     def __init__(
             self,
-            n_classes=120,
-            n_patches=75,
-            embed_dim=384,
-            depth=12,
-            n_heads=8,
+            n_classes,
+            n_patches,
+            embed_dim,
+            depth,
+            n_heads,
             mlp_ratio=4.,
             qkv_bias=True,
             p=0.1,
