@@ -2,9 +2,9 @@
 deep_log_tool_args:
   username: 15098144981
   password: 2312
-  title: msg3d
-  comments: baseline
-  dataset: NTU120-xsub-bone
+  title: msg3d_trick
+  comments: 随机取frames + interpolate
+  dataset: NTU120-xsub-joint
   task: skeleton
 
 
@@ -23,10 +23,10 @@ model_saved_name: ''
 # feeder
 feeder: feeders.feeder.Feeder
 test_feeder_args:
-  data_path: /home/ankin/skeleton/data/NTU/ntu120/xsub/val_data_bone.npy
+  data_path: /home/ankin/skeleton/data/NTU/ntu120/xsub/val_data_joint.npy
   label_path: /home/ankin/skeleton/data/NTU/ntu120/xsub/val_label.pkl
 train_feeder_args:
-  data_path: /home/ankin/skeleton/data/NTU/ntu120/xsub/train_data_bone.npy
+  data_path: /home/ankin/skeleton/data/NTU/ntu120/xsub/train_data_joint.npy
   debug: false
   label_path: /home/ankin/skeleton/data/NTU/ntu120/xsub/train_label.pkl
   normalization: false
@@ -41,9 +41,9 @@ step: [28, 36, 44, 52]
 base_lr: 0.05
 
 # batch size
-batch_size: 90
-forward_batch_size: 90
-test_batch_size: 90
+batch_size: 400
+forward_batch_size: 400
+test_batch_size: 400
 
 device:
 - 1

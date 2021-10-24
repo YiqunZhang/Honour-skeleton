@@ -14,6 +14,8 @@ from model.ms_gtcn import SpatialTemporal_MS_GCN, UnfoldTemporalWindows
 from model.mlp import MLP
 from model.activation import activation_factory
 
+import random
+
 
 class MS_G3D(nn.Module):
     def __init__(self,
@@ -150,12 +152,20 @@ class Model(nn.Module):
 
         self.fc = nn.Linear(c3, num_class)
 
+
     def forward(self, x):
         N, C, T, V, M = x.size()
 
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
         x = self.data_bn(x)
-        x = x.view(N * M, V, C, T).permute(0,2,3,1).contiguous()
+        x = x.view(N * M, V, C, T).permute(0,2,3,1).contiguous() # N*M, C, T, V
+
+        # 随机取 50% - 95% 的 frames
+        T_random = random.randint(0.5*T, 0.95*T)
+        T_target = 64
+        x = x[:,:,0:T_random,:]
+        # x = torch.nn.functional.interpolate(x, [N*M, C, T_target, V])
+        x = torch.nn.functional.interpolate(x, [T_target, V])
 
         # Apply activation to the sum of the pathways
         # x = F.relu(self.sgcn1(x) + self.gcn3d1(x), inplace=True)
@@ -178,6 +188,8 @@ class Model(nn.Module):
 
         out = self.fc(out)
         return out
+
+
 
 
 if __name__ == "__main__":
