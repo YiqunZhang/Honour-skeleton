@@ -3,7 +3,7 @@ deep_log_tool_args:
   username: 15098144981
   password: 2312
   title: msg3d_trick
-  comments: 随机取frames + interpolate
+  comments: 降低frames + rot
   dataset: NTU120-xsub-joint
   task: skeleton
 
@@ -27,6 +27,7 @@ test_feeder_args:
   label_path: /home/ankin/skeleton/data/NTU/ntu120/xsub/val_label.pkl
   window_size: 64
   p_interval: [ 0.95 ]
+  random_rot: True
 train_feeder_args:
   data_path: /home/ankin/skeleton/data/NTU/ntu120/xsub/train_data_joint.npy
   debug: false
