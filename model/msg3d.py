@@ -179,7 +179,7 @@ class Model(nn.Module):
         out = out.mean(3)   # Global Average Pooling (Spatial+Temporal)
         out = out.mean(1)   # Average pool number of bodies in the sequence
 
-        out = self.fc(out
+        out = self.fc(out)
         return out
 
 
