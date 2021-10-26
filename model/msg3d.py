@@ -160,13 +160,6 @@ class Model(nn.Module):
         x = self.data_bn(x)
         x = x.view(N * M, V, C, T).permute(0,2,3,1).contiguous() # N*M, C, T, V
 
-        # 随机取 50% - 95% 的 frames
-        T_random = random.randint(0.5*T, 0.95*T)
-        T_target = 64
-        x = x[:,:,0:T_random,:]
-        # x = torch.nn.functional.interpolate(x, [N*M, C, T_target, V])
-        x = torch.nn.functional.interpolate(x, [T_target, V])
-
         # Apply activation to the sum of the pathways
         # x = F.relu(self.sgcn1(x) + self.gcn3d1(x), inplace=True)
         x = F.relu(self.sgcn1(x), inplace=True)
@@ -186,7 +179,7 @@ class Model(nn.Module):
         out = out.mean(3)   # Global Average Pooling (Spatial+Temporal)
         out = out.mean(1)   # Average pool number of bodies in the sequence
 
-        out = self.fc(out)
+        out = self.fc(out
         return out
 
 
