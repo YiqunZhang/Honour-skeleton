@@ -25,6 +25,8 @@ feeder: feeders.feeder.Feeder
 test_feeder_args:
   data_path: /home/ankin/skeleton/data/NTU/ntu120/xsub/val_data_joint.npy
   label_path: /home/ankin/skeleton/data/NTU/ntu120/xsub/val_label.pkl
+  window_size: 64
+  p_interval: [ 0.95 ]
 train_feeder_args:
   data_path: /home/ankin/skeleton/data/NTU/ntu120/xsub/train_data_joint.npy
   debug: false
@@ -33,7 +35,9 @@ train_feeder_args:
   random_choose: false
   random_move: false
   random_shift: false
-  window_size: -1
+  window_size: 64
+  random_rot: True
+  p_interval: [ 0.5, 1 ]
 
 # 训练参数
 weight_decay: 0.0005
