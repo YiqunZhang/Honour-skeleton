@@ -24,7 +24,7 @@ def get_raw_bodies_data(skes_path, ske_name, frames_drop_skes, frames_drop_logge
         - num_frames: the number of valid frames.
     """
     if int(ske_name[1:4]) >= 18:
-        skes_path = '../nturgbd_raw/nturgb+d_skeletons120/'
+        skes_path = '/home/ankin/skeleton/data/NTU/nturgbd_raw/nturgb+d_skeletons120/'
     ske_file = osp.join(skes_path, ske_name + '.skeleton')
     assert osp.exists(ske_file), 'Error: Skeleton file %s not found' % ske_file
     # Read all data from .skeleton file into a list (in string format)
@@ -134,9 +134,9 @@ def get_raw_skes_data():
         pickle.dump(frames_drop_skes, fw, pickle.HIGHEST_PROTOCOL)
 
 if __name__ == '__main__':
-    save_path = './'
+    save_path = "/home/ankin/skeleton/data/temp/"
+    skes_path = '/home/ankin/skeleton/data/NTU/nturgbd_raw/nturgb+d_skeletons/'
 
-    skes_path = '../nturgbd_raw/nturgb+d_skeletons/'
     stat_path = osp.join(save_path, 'statistics')
     if not osp.exists('./raw_data'):
         os.makedirs('./raw_data')

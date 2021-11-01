@@ -9,6 +9,7 @@ import h5py
 from sklearn.model_selection import train_test_split
 
 root_path = './'
+root_path = "/home/ankin/skeleton/data/temp/"
 stat_path = osp.join(root_path, 'statistics')
 setup_file = osp.join(stat_path, 'setup.txt')
 camera_file = osp.join(stat_path, 'camera.txt')
