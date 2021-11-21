@@ -1,0 +1,87 @@
+# log
+deep_log_tool_args:
+  username: 15098144981
+  password: 2312
+  title: msg3d_ctr
+  comments: 移植 feeder
+  dataset: NTU120-xsub-joint
+  task: skeleton
+
+# model
+model: model.msg3d.Model
+model_args:
+  graph: graph.ntu_rgb_d.AdjMatrixGraph
+  num_class: 120
+  num_g3d_scales: 6
+  num_gcn_scales: 13 # 尺度13
+  num_person: 2
+  num_point: 25
+  in_channels: 3
+model_saved_name: ''
+
+
+
+# feeder
+feeder: feeders.feeder_ctr.Feeder
+train_feeder_args:
+  data_path: /home/ankin/skeleton/data/NTU/ntu120_ctr/NTU120_CSub.npz
+  split: train
+  debug: False
+  random_choose: False
+  random_shift: False
+  random_move: False
+  window_size: 64
+  normalization: False
+  random_rot: True
+  p_interval: [0.5, 1]
+  vel: False
+  bone: False
+
+test_feeder_args:
+  data_path: /home/ankin/skeleton/data/NTU/ntu120_ctr/NTU120_CSub.npz
+  split: test
+  window_size: 64
+  p_interval: [0.95]
+  vel: False
+  bone: False
+  debug: False
+
+# 训练参数
+weight_decay: 0.0005
+step: [28, 36, 44, 52]
+base_lr: 0.05
+
+# batch size
+batch_size: 400
+forward_batch_size: 400
+test_batch_size: 400
+
+device:
+- 1
+- 0
+
+start_epoch: 0
+num_epoch: 60
+eval_interval: 1
+eval_start: 1
+
+# checkpoint: ./workdir/checkpoints/checkpoint-44-fwbz16-86636.pt
+# weights: ./workdir/weights/weights-44-86636.pt
+
+amp_opt_level: 1
+
+debug: false
+optimizer_states: null
+phase: train
+print_log: true
+save_interval: 1
+save_score: true
+seed: 123
+nesterov: true
+num_worker: 8
+work_dir: ./workdir
+optimizer: SGD
+assume_yes: true
+half: false
+ignore_weights: []
+log_interval: 100

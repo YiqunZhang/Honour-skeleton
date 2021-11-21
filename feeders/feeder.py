@@ -11,7 +11,7 @@ from feeders import tools
 
 class Feeder(Dataset):
     def __init__(self, data_path, label_path,
-                 random_choose=False, random_shift=False, random_move=False,
+                 random_choose=False, random_shift=False, random_move=False,random_rot=False,p_interval=1,
                  window_size=-1, normalization=False, debug=False, use_mmap=True):
         """
         :param data_path:
@@ -24,7 +24,8 @@ class Feeder(Dataset):
         :param debug: If true, only use the first 100 samples
         :param use_mmap: If true, use mmap mode to load data, which can save the running memory
         """
-
+        self.p_interval = p_interval
+        self.random_rot = random_rot
         self.debug = debug
         self.data_path = data_path
         self.label_path = label_path
@@ -75,6 +76,12 @@ class Feeder(Dataset):
         label = self.label[index]
         data_numpy = np.array(data_numpy)
 
+        valid_frame_num = np.sum(data_numpy.sum(0).sum(-1).sum(-1) != 0)
+        data_numpy = tools.valid_crop_resize(data_numpy, valid_frame_num, self.p_interval, self.window_size)
+
+        if self.random_rot:
+            data_numpy = tools.random_rot(data_numpy)
+
         if self.normalization:
             data_numpy = (data_numpy - self.mean_map) / self.std_map
         if self.random_shift:
@@ -102,7 +109,7 @@ def import_class(name):
     return mod
 
 
-def test(data_path, label_path, vid=None, graph=None, is_3d=False):
+def test(data_path, label_path, vid=None, graph=None, is_3d=False,random_rot=False,p_interval=1):
     '''
     vis the samples using matplotlib
     :param data_path:
@@ -114,7 +121,7 @@ def test(data_path, label_path, vid=None, graph=None, is_3d=False):
     '''
     import matplotlib.pyplot as plt
     loader = torch.utils.data.DataLoader(
-        dataset=Feeder(data_path, label_path),
+        dataset=Feeder(data_path, label_path,random_rot=random_rot,p_interval=p_interval),
         batch_size=64,
         shuffle=False,
         num_workers=2)
